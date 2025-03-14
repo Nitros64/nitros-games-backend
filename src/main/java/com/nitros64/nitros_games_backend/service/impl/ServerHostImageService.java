@@ -1,0 +1,28 @@
+package com.nitros64.nitros_games_backend.service.impl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.nitros64.nitros_games_backend.model.entity.ServerHostImage;
+import com.nitros64.nitros_games_backend.repositories.BaseRepository;
+import com.nitros64.nitros_games_backend.repositories.legacy.ServerHostImageRepository;
+
+import java.util.Optional;
+
+/********************************************************************************
+ *                      SERVERHOST IMAGE SERVICE IMPLEMENTATION                 *
+ ********************************************************************************/
+
+@Service
+public class ServerHostImageService extends BaseServiceImpl<ServerHostImage,Long>{
+
+    @Autowired
+    private ServerHostImageRepository serverHostImageRepository;
+
+    public ServerHostImageService(BaseRepository<ServerHostImage, Long> baseRepository) {
+        super(baseRepository);
+    }
+
+    public Optional<ServerHostImage> findByName(String name){
+        return this.serverHostImageRepository.findByName(name);
+    }
+}
