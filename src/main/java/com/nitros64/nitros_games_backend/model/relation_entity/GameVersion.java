@@ -1,16 +1,11 @@
 package com.nitros64.nitros_games_backend.model.relation_entity;
 
-import java.io.Serializable;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
@@ -83,41 +78,13 @@ public class GameVersion extends Base {
                fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Set<DownloadLink> downloadLinks = new HashSet<>();
-
-//    public GameVersion() { }
-//    
-//    public GameVersion(String name) {
-//        this.name = name;
-//    }
-//    
-//    public GameVersion(String name, GameData versions) {
-//        this.name = name;
-//        //this.gamedata = gamedata;
-//    }
-//
-//    public GameVersion(String name, LanguageTool ptool) {
-//        this.name = name;
-//        this.lang_tool = ptool;
-//    }
-//
-//    public GameVersion(String name, LanguageTool ptool, ToolProcessor toolprocessor) {
-//        this.name = name;
-//        this.lang_tool = ptool;
-//        this.toolprocessor = toolprocessor;
-//    }
-//
+    
     public GameVersion(String name, LanguageTool lang_tool, ToolProcessor toolprocessor, ToolPlatform toolplatform) {
         this.name = name;
         this.lang_tool = lang_tool;
         this.toolprocessor = toolprocessor;
         this.toolplatform = toolplatform;
-    }
-//
-//    public GameVersion(String name, GameData versions, LanguageTool ptool) {
-//        this.name = name;
-//        //this.gamedata = gamedata;
-//        this.lang_tool = ptool;
-//    }   
+    }   
     
     public void addDownloadLink(DownloadLink dl){
         this.downloadLinks.add(dl);

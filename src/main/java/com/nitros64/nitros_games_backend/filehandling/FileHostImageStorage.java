@@ -9,7 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.nitros64.nitros_games_backend.exception.httpexception.UploadImageException;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;

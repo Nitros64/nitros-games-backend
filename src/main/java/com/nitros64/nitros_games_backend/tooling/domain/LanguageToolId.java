@@ -2,7 +2,6 @@ package com.nitros64.nitros_games_backend.tooling.domain;
 
 import java.io.Serializable;
 import java.util.Objects;
-import jakarta.persistence.Column;
 
 public class LanguageToolId implements Serializable{
     private static final long serialVersionUID = -2834827403836993112L;

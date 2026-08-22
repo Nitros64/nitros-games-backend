@@ -1,7 +1,6 @@
 package com.nitros64.nitros_games_backend.tooling.domain;
 
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -9,8 +8,6 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -45,27 +42,3 @@ public class LanguageTool {
     private ProgrammingTool program_tool;
 
 }
-
-//    public LanguageTool() {
-//    }
-//
-//    public LanguageTool(ProgrammingLanguage program_language, ProgrammingTool program_tool) {
-//        this.program_language = program_language;
-//        this.program_tool = program_tool;
-//    }
-//
-//    public ProgrammingLanguage getProgram_language() {
-//        return program_language;
-//    }
-//
-//    public void setProgram_language(ProgrammingLanguage program_language) {
-//        this.program_language = program_language;
-//    }
-//
-//    public ProgrammingTool getProgram_tool() {
-//        return program_tool;
-//    }
-//
-//    public void setProgram_tool(ProgrammingTool program_tool) {
-//        this.program_tool = program_tool;
-//    }

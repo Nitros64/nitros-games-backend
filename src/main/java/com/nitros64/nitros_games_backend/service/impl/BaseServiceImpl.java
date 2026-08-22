@@ -2,7 +2,6 @@ package com.nitros64.nitros_games_backend.service.impl;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 import jakarta.transaction.Transactional;
 
 import org.springframework.data.domain.Page;
