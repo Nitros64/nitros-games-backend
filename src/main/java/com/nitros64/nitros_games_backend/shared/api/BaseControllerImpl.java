@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.controllers;
+package com.nitros64.nitros_games_backend.shared.api;
 
 
 import java.util.List;
@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-import com.nitros64.nitros_games_backend.model.entity.Base;
-import com.nitros64.nitros_games_backend.service.interfaces.BaseService;
+import com.nitros64.nitros_games_backend.shared.application.BaseService;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 public abstract class BaseControllerImpl<E extends Base, S extends BaseService<E,Long>> implements BaseController<E, Long> {
     
@@ -75,7 +75,7 @@ public abstract class BaseControllerImpl<E extends Base, S extends BaseService<E
     
     @Override
     @PostMapping("addAll")
-    public ResponseEntity<?> saveAll(@Valid @RequestBody List<E> entity) throws Exception{
+    public ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity) throws Exception{
         //try {
             return ResponseEntity.status(HttpStatus.CREATED).body(this.servicio.saveAll(entity));
 //        } catch (Exception ex) {

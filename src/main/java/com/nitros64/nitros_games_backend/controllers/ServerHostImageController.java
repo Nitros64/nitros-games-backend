@@ -1,5 +1,7 @@
 package com.nitros64.nitros_games_backend.controllers;
 
+import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
+
 import jdk.jfr.ContentType;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;

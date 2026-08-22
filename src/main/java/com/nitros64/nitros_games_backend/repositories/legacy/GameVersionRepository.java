@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.nitros64.nitros_games_backend.model.relation_entity.GameVersion;
-import com.nitros64.nitros_games_backend.repositories.BaseRepository;
+import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
 @Repository
 public interface GameVersionRepository extends BaseRepository<GameVersion,Long>{

@@ -3,7 +3,7 @@ package com.nitros64.nitros_games_backend.tooling.application;
 import java.util.List;
 
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
-import com.nitros64.nitros_games_backend.service.interfaces.BaseService;
+import com.nitros64.nitros_games_backend.shared.application.BaseService;
 
 /********************************************************************************/
 /*                      PROGRAMMING TOOL TYPE SERVICE                           */

@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.entity;
+package com.nitros64.nitros_games_backend.shared.domain;
 
 import java.io.Serializable;
 import jakarta.persistence.GeneratedValue;

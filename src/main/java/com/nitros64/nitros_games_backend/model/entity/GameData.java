@@ -2,6 +2,7 @@ package com.nitros64.nitros_games_backend.model.entity;
 
 import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 import java.util.HashSet;
 import java.util.Set;

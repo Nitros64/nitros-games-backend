@@ -20,7 +20,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import com.nitros64.nitros_games_backend.model.entity.Base;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 import com.nitros64.nitros_games_backend.model.entity.DownloadLink;
 import com.nitros64.nitros_games_backend.model.entity.GameData;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;

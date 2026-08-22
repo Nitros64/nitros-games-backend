@@ -1,6 +1,7 @@
 package com.nitros64.nitros_games_backend.model.entity;
 
 import com.nitros64.nitros_games_backend.model.relation_entity.GameVersion;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

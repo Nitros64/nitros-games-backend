@@ -1,5 +1,7 @@
 package com.nitros64.nitros_games_backend.model.entity;
 
+import com.nitros64.nitros_games_backend.shared.domain.Base;
+
 import com.nitros64.nitros_games_backend.constrait.NoNumberString;
 
 import jakarta.persistence.Column;

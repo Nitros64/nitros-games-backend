@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.repositories;
+package com.nitros64.nitros_games_backend.shared.persistence;
 
 import java.io.Serializable;
 
