@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.catalog.web;
+package com.nitros64.nitros_games_backend.catalog.api;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;

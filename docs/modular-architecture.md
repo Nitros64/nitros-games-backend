@@ -7,7 +7,7 @@ independently understandable module with these internal layers:
 - `domain`: entities and domain rules;
 - `application`: use cases and transaction orchestration;
 - `persistence`: repository adapters;
-- `web`: HTTP adapters.
+- `api`: public HTTP entry points and their transport contracts.
 
 ## Catalog module
 
@@ -17,7 +17,7 @@ and JSON contracts remain unchanged.
 
 Games and programming tools currently reference catalog domain entities through
 JPA relationships. They must not depend on catalog services, repositories or
-controllers. Generic base controllers, services, repositories and entities are
+API controllers. Generic base controllers, services, repositories and entities are
 still in legacy layer packages; they will move to a shared kernel after another
 vertical module has been extracted and their actual common surface is clear.
 

@@ -18,10 +18,10 @@ import com.nitros64.nitros_games_backend.catalog.persistence.DevDifficultyReposi
 import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
-import com.nitros64.nitros_games_backend.catalog.web.DevelopmentDifficultyController;
-import com.nitros64.nitros_games_backend.catalog.web.GameGenreController;
-import com.nitros64.nitros_games_backend.catalog.web.PlatformController;
-import com.nitros64.nitros_games_backend.catalog.web.ProcessorController;
+import com.nitros64.nitros_games_backend.catalog.api.DevelopmentDifficultyController;
+import com.nitros64.nitros_games_backend.catalog.api.GameGenreController;
+import com.nitros64.nitros_games_backend.catalog.api.PlatformController;
+import com.nitros64.nitros_games_backend.catalog.api.ProcessorController;
 
 class CatalogModuleStructureTests {
 
