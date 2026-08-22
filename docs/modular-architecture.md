@@ -46,6 +46,13 @@ Moving the association entities together with their composite ID classes keeps
 the JPA model inside one feature boundary. Existing endpoints, tables and
 foreign-key columns remain unchanged.
 
+The tooling HTTP boundary uses request and response DTOs for programming
+languages, tool types and programming tools. A tool refers to its type through
+`toolTypeId`; the application service resolves that identifier transactionally
+instead of accepting a client-built JPA graph. The `ManyToOne` no longer
+cascades writes or deletes into the shared tool type. Paged responses use the
+application-owned `PageResponse` contract.
+
 ## Shared kernel
 
 `shared` contains only technical abstractions used by more than one feature

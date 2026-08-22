@@ -3,18 +3,29 @@ package com.nitros64.nitros_games_backend.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
 import com.nitros64.nitros_games_backend.tooling.api.ProgramLanguageController;
 import com.nitros64.nitros_games_backend.tooling.api.ProgramToolController;
 import com.nitros64.nitros_games_backend.tooling.api.ProgramToolTypeController;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgramToolTypeRequest;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgramToolTypeResponse;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingLanguageRequest;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingLanguageResponse;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolRequest;
+import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolResponse;
+import com.nitros64.nitros_games_backend.tooling.api.mapper.ProgramToolTypeApiMapper;
+import com.nitros64.nitros_games_backend.tooling.api.mapper.ProgrammingLanguageApiMapper;
+import com.nitros64.nitros_games_backend.tooling.api.mapper.ProgrammingToolApiMapper;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramLangService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramLangServiceImpl;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolServiceImpl;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeServiceImpl;
+import com.nitros64.nitros_games_backend.tooling.application.SaveProgrammingToolCommand;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageToolId;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
@@ -50,10 +61,27 @@ class ToolingModuleStructureTests {
                 ProgramToolTypeRepository.class, ProgramToolLangRepo.class,
                 IToolPlatformDao.class, IToolProcessorDao.class,
                 ProgramLanguageController.class, ProgramToolController.class,
-                ProgramToolTypeController.class);
+                ProgramToolTypeController.class,
+                ProgrammingLanguageRequest.class, ProgrammingLanguageResponse.class,
+                ProgramToolTypeRequest.class, ProgramToolTypeResponse.class,
+                ProgrammingToolRequest.class, ProgrammingToolResponse.class,
+                ProgrammingLanguageApiMapper.class, ProgramToolTypeApiMapper.class,
+                ProgrammingToolApiMapper.class, SaveProgrammingToolCommand.class);
 
         assertThat(toolingTypes)
                 .allSatisfy(type -> assertThat(type.getPackageName())
                         .startsWith(TOOLING_PACKAGE + "."));
+    }
+
+    @Test
+    void toolingControllersDoNotExposeJpaEntities() {
+        Stream.of(
+                ProgramLanguageController.class,
+                ProgramToolTypeController.class,
+                ProgramToolController.class)
+                .flatMap(controller -> Stream.of(controller.getDeclaredMethods()))
+                .map(method -> method.toGenericString())
+                .forEach(signature -> assertThat(signature)
+                        .doesNotContain(TOOLING_PACKAGE + ".domain."));
     }
 }
