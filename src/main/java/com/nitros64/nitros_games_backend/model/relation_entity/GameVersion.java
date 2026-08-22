@@ -79,7 +79,7 @@ public class GameVersion extends Base {
                cascade = CascadeType.ALL,
                fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private Set<DownloadLink> downloadLinks = new HashSet();
+    private Set<DownloadLink> downloadLinks = new HashSet<>();
 
 //    public GameVersion() { }
 //    

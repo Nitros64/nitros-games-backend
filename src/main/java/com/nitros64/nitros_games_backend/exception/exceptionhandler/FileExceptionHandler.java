@@ -17,7 +17,7 @@ public class FileExceptionHandler {
     public ResponseEntity<?> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e){
         Map<String, Object> response = new HashMap<>();
         response.put("message","El tamaño del archivo es superior a 10M");
-        return new ResponseEntity<>(response, HttpStatus.BANDWIDTH_LIMIT_EXCEEDED);
+        return new ResponseEntity<>(response, HttpStatus.CONTENT_TOO_LARGE);
     }
 
     @ExceptionHandler(value = UploadImageException.class)
