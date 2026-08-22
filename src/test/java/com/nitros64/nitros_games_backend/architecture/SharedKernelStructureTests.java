@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.nitros64.nitros_games_backend.shared.api.BaseController;
 import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
+import com.nitros64.nitros_games_backend.shared.api.PageResponse;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiProblemWriter;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiValidationViolation;
@@ -32,7 +33,7 @@ class SharedKernelStructureTests {
                 Base.class, BaseRepository.class,
                 BaseService.class, BaseServiceImpl.class,
                 ResourceNotFoundException.class,
-                BaseController.class, BaseControllerImpl.class,
+                BaseController.class, BaseControllerImpl.class, PageResponse.class,
                 ApiProblem.class, ApiProblemWriter.class,
                 ApiValidationViolation.class, RestExceptionHandler.class,
                 NoNumberString.class, NoNumberValidator.class))

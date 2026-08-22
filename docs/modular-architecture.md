@@ -24,6 +24,16 @@ vertical module has been extracted and their actual common surface is clear.
 The architecture test records the current boundary and prevents catalog types
 from being moved back into layer-oriented packages.
 
+The catalog HTTP boundary uses resource-specific request and response DTOs.
+Controllers map those DTOs explicitly and never accept or return JPA entities;
+therefore persistence changes do not silently alter the public JSON contract.
+The existing endpoint paths, status codes and `id`/`name` response shape remain
+compatible.
+
+Paged endpoints return the shared `PageResponse` contract instead of exposing
+Spring Data's unstable `PageImpl` serialization. It preserves the established
+pagination fields while making their JSON representation application-owned.
+
 ## Tooling module
 
 `tooling` owns programming languages, programming tools, tool types and the

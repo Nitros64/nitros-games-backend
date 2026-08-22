@@ -3,6 +3,7 @@ package com.nitros64.nitros_games_backend.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,18 @@ import com.nitros64.nitros_games_backend.catalog.api.DevelopmentDifficultyContro
 import com.nitros64.nitros_games_backend.catalog.api.GameGenreController;
 import com.nitros64.nitros_games_backend.catalog.api.PlatformController;
 import com.nitros64.nitros_games_backend.catalog.api.ProcessorController;
+import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyRequest;
+import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyResponse;
+import com.nitros64.nitros_games_backend.catalog.api.dto.GameGenreRequest;
+import com.nitros64.nitros_games_backend.catalog.api.dto.GameGenreResponse;
+import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformRequest;
+import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformResponse;
+import com.nitros64.nitros_games_backend.catalog.api.dto.ProcessorRequest;
+import com.nitros64.nitros_games_backend.catalog.api.dto.ProcessorResponse;
+import com.nitros64.nitros_games_backend.catalog.api.mapper.DevelopmentDifficultyApiMapper;
+import com.nitros64.nitros_games_backend.catalog.api.mapper.GameGenreApiMapper;
+import com.nitros64.nitros_games_backend.catalog.api.mapper.PlatformApiMapper;
+import com.nitros64.nitros_games_backend.catalog.api.mapper.ProcessorApiMapper;
 
 class CatalogModuleStructureTests {
 
@@ -37,10 +50,29 @@ class CatalogModuleStructureTests {
                 DevelopDifficultyService.class, GameGenreService.class,
                 PlatformService.class, ProcessorService.class,
                 DevelopmentDifficultyController.class, GameGenreController.class,
-                PlatformController.class, ProcessorController.class);
+                PlatformController.class, ProcessorController.class,
+                DevelopmentDifficultyRequest.class, DevelopmentDifficultyResponse.class,
+                GameGenreRequest.class, GameGenreResponse.class,
+                PlatformRequest.class, PlatformResponse.class,
+                ProcessorRequest.class, ProcessorResponse.class,
+                DevelopmentDifficultyApiMapper.class, GameGenreApiMapper.class,
+                PlatformApiMapper.class, ProcessorApiMapper.class);
 
         assertThat(catalogTypes)
                 .allSatisfy(type -> assertThat(type.getPackageName())
                         .startsWith(CATALOG_PACKAGE + "."));
+    }
+
+    @Test
+    void catalogControllersDoNotExposeJpaEntities() {
+        Stream.of(
+                DevelopmentDifficultyController.class,
+                GameGenreController.class,
+                PlatformController.class,
+                ProcessorController.class)
+                .flatMap(controller -> Stream.of(controller.getDeclaredMethods()))
+                .map(method -> method.toGenericString())
+                .forEach(signature -> assertThat(signature)
+                        .doesNotContain(CATALOG_PACKAGE + ".domain."));
     }
 }
