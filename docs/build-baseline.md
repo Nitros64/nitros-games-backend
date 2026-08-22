@@ -40,14 +40,14 @@ The baseline currently characterizes:
 
 ## Known limitations
 
-- H2 compatibility mode does not prove that Hibernate's generated schema is
-  fully compatible with MySQL.
-- There are no migrations yet, so production schema drift is not checked.
+- H2 compatibility mode does not prove that the migration is compatible with
+  MySQL; use the `mysql-it` Maven profile for that verification.
 - H2 is deliberately limited to the test classpath and cannot be selected in a
   runtime environment.
 - Security, API redesign and domain refactoring are deliberately outside this
   baseline.
-- Compilation still reports unchecked operations in `CustomExceptionMessage`.
+- The MySQL integration test is intentionally opt-in because it requires a
+  working Docker environment.
 
-A later persistence phase should add Testcontainers with the supported MySQL
-version and validate versioned database migrations against it.
+The persistence phase now validates versioned Flyway migrations against MySQL
+8.4.11 with Testcontainers. See `docs/database-migrations.md`.

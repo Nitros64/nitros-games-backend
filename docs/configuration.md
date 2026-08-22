@@ -28,9 +28,11 @@ export DB_PASSWORD=your-local-password
 does not. `.env.example` is a reference for IDEs or tools that support dotenv
 files; Spring Boot does not load `.env` files by itself.
 
-The local profile preserves the current development behavior, including
-Hibernate schema updates, SQL logging and lazy loading outside transactions.
-Those settings must not be used in production.
+The local profile keeps SQL logging and lazy loading outside transactions for
+development compatibility. Flyway owns schema changes and Hibernate only
+validates the mappings. Existing local schemas can be adopted at version 1
+with `FLYWAY_BASELINE_ON_MIGRATE`; this must not be enabled automatically in
+production.
 
 ## Production
 
