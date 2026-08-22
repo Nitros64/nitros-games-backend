@@ -1,8 +1,9 @@
-package com.nitros64.nitros_games_backend.service.impl;
+package com.nitros64.nitros_games_backend.catalog.application;
 
 import org.springframework.stereotype.Service;
 
-import com.nitros64.nitros_games_backend.model.entity.DevelopmentDifficulty;
+import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
+import com.nitros64.nitros_games_backend.service.impl.BaseServiceImpl;
 import com.nitros64.nitros_games_backend.repositories.BaseRepository;
 
 /********************************************************************************

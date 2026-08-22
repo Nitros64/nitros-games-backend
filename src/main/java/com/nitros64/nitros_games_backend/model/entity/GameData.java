@@ -1,5 +1,8 @@
 package com.nitros64.nitros_games_backend.model.entity;
 
+import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
+import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
+
 import java.util.HashSet;
 import java.util.Set;
 import jakarta.persistence.CascadeType;

@@ -1,4 +1,6 @@
-package com.nitros64.nitros_games_backend.model.entity;
+package com.nitros64.nitros_games_backend.catalog.domain;
+
+import com.nitros64.nitros_games_backend.model.entity.Base;
 
 import com.nitros64.nitros_games_backend.constrait.NoNumberString;
 
@@ -16,12 +18,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "platform")
+@Table(name = "GameGenres")
 @NoArgsConstructor
 @AllArgsConstructor
 @Setter
 @Getter
-public class Platform extends Base{
+public class GameGenre extends Base{
     
     private static final long serialVersionUID = 1L;
 
@@ -31,7 +33,7 @@ public class Platform extends Base{
     @NotBlank(message = "No se permite campo en blanco")
     @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
     @Column(nullable = false, unique = true)
-    private String name; 
+    private String name;
 }
 
 /*

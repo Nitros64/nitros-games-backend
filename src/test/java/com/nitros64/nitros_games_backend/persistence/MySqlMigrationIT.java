@@ -12,7 +12,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;
 
-import com.nitros64.nitros_games_backend.repositories.legacy.GenreRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
 
 @Testcontainers
 @SpringBootTest(properties = {

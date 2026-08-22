@@ -1,6 +1,6 @@
 package com.nitros64.nitros_games_backend.model.relation_entity;
 
-import com.nitros64.nitros_games_backend.model.entity.Processor;
+import com.nitros64.nitros_games_backend.catalog.domain.Processor;
 import com.nitros64.nitros_games_backend.model.entity.ProgrammingTool;
 
 import jakarta.persistence.CascadeType;

@@ -2,7 +2,7 @@ package com.nitros64.nitros_games_backend.model.relation_entity;
 
 import java.io.Serializable;
 
-import com.nitros64.nitros_games_backend.model.entity.Platform;
+import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.model.entity.ProgrammingTool;
 
 import jakarta.persistence.CascadeType;
