@@ -5,8 +5,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
-import com.nitros64.nitros_games_backend.repositories.BaseRepository;
-import com.nitros64.nitros_games_backend.service.impl.BaseServiceImpl;
+import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
+import com.nitros64.nitros_games_backend.shared.application.BaseServiceImpl;
 
     /********************************************************************************
      *          PROGRAMMING LANGUAGE SERVICE IMPLEMENTATION                         *

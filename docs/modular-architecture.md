@@ -35,3 +35,13 @@ repositories or API controllers.
 Moving the association entities together with their composite ID classes keeps
 the JPA model inside one feature boundary. Existing endpoints, tables and
 foreign-key columns remain unchanged.
+
+## Shared kernel
+
+`shared` contains only technical abstractions used by more than one feature
+module: the mapped base entity and generic repository, service and API support.
+It must not depend on `catalog`, `tooling` or future business modules.
+
+The shared API validates each element of bulk request bodies with
+`List<@Valid E>`. Feature-specific DTOs, entities, repositories and business
+rules must remain in their owning module instead of being promoted to shared.

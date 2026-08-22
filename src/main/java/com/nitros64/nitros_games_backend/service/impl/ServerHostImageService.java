@@ -1,9 +1,11 @@
 package com.nitros64.nitros_games_backend.service.impl;
+
+import com.nitros64.nitros_games_backend.shared.application.BaseServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.nitros64.nitros_games_backend.model.entity.ServerHostImage;
-import com.nitros64.nitros_games_backend.repositories.BaseRepository;
+import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 import com.nitros64.nitros_games_backend.repositories.legacy.ServerHostImageRepository;
 
 import java.util.Optional;

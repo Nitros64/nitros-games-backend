@@ -1,11 +1,11 @@
-package com.nitros64.nitros_games_backend.service.interfaces;
+package com.nitros64.nitros_games_backend.shared.application;
 
 import java.io.Serializable;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import com.nitros64.nitros_games_backend.model.entity.Base;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 public interface BaseService <E extends Base, ID extends Serializable>{
     List<E> findAll() throws Exception;

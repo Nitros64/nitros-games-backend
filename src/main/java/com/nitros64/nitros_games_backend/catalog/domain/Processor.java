@@ -1,6 +1,6 @@
 package com.nitros64.nitros_games_backend.catalog.domain;
 
-import com.nitros64.nitros_games_backend.model.entity.Base;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.catalog.application.PlatformService;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
-import com.nitros64.nitros_games_backend.controllers.BaseControllerImpl;
+import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
 
  /*******************************************************************************
  *                           PLATFORM CONTROLLER                                *

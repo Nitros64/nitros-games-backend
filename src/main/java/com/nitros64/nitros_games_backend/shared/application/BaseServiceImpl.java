@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.service.impl;
+package com.nitros64.nitros_games_backend.shared.application;
 
 import java.io.Serializable;
 import java.util.List;
@@ -9,9 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 
 import com.nitros64.nitros_games_backend.exception.httpexception.NotFoundException;
-import com.nitros64.nitros_games_backend.model.entity.Base;
-import com.nitros64.nitros_games_backend.repositories.BaseRepository;
-import com.nitros64.nitros_games_backend.service.interfaces.BaseService;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
+import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
 
 public abstract class BaseServiceImpl<E extends Base, ID extends Serializable> implements BaseService<E, ID> {

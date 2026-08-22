@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.controllers;
+package com.nitros64.nitros_games_backend.shared.api;
 
 import java.io.Serializable;
 import java.util.List;
@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
-import com.nitros64.nitros_games_backend.model.entity.Base;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 import jakarta.validation.Valid;
 
@@ -17,7 +17,7 @@ public interface BaseController <E extends Base, ID extends Serializable>{
     ResponseEntity<?> getAll(Pageable paeable);
     ResponseEntity<?> getOne(@PathVariable ID id) throws Exception;
     ResponseEntity<?> save(@Valid @RequestBody E entity) throws Exception;
-    ResponseEntity<?> saveAll(@Valid @RequestBody List<E> entity) throws Exception;
+    ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity) throws Exception;
     ResponseEntity<?> update(@PathVariable ID id, @RequestBody E entity) throws Exception;
     ResponseEntity<?> delete(@PathVariable ID id) throws Exception;
 }

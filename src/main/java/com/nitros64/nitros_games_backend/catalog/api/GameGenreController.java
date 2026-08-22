@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
-import com.nitros64.nitros_games_backend.controllers.BaseControllerImpl;
+import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
 
 /*********************************************************************
  *                      GAME GENRE CONTROLLER                        *
