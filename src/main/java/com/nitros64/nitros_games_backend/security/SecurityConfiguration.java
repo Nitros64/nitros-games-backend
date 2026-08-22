@@ -21,11 +21,16 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblemWriter;
+
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            ApiProblemWriter problemWriter) throws Exception {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
@@ -39,8 +44,24 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/**").hasRole("ADMIN")
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
+                .exceptionHandling(exceptions -> exceptions.accessDeniedHandler(
+                        (request, response, exception) -> problemWriter.write(
+                                response,
+                                ApiProblem.create(
+                                        HttpStatus.FORBIDDEN,
+                                        "Access denied",
+                                        "access_denied",
+                                        "Administrator privileges are required",
+                                        request.getRequestURI()))))
                 .httpBasic(basic -> basic.authenticationEntryPoint((request, response, exception) ->
-                        response.sendError(HttpStatus.UNAUTHORIZED.value())))
+                        problemWriter.write(
+                                response,
+                                ApiProblem.create(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "Authentication required",
+                                        "authentication_required",
+                                        "Authentication is required to modify this resource",
+                                        request.getRequestURI()))))
                 .build();
     }
 

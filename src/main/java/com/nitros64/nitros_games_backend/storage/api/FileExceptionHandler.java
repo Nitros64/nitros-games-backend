@@ -1,36 +1,34 @@
 package com.nitros64.nitros_games_backend.storage.api;
 
-import org.springframework.http.HttpStatus;
+import jakarta.servlet.http.HttpServletRequest;
+
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
 import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 
-import java.util.HashMap;
-import java.util.Map;
-
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class FileExceptionHandler {
-    @ExceptionHandler(value = MaxUploadSizeExceededException.class)
-    public ResponseEntity<?> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e){
-        Map<String, Object> response = new HashMap<>();
-        response.put("message","El tamaño del archivo es superior a 10M");
-        return new ResponseEntity<>(response, HttpStatus.CONTENT_TOO_LARGE);
-    }
 
     @ExceptionHandler(value = UploadImageException.class)
-    public ResponseEntity<?> handleUploadImageException(UploadImageException e){
-        Map<String, Object> response = new HashMap<>();
-        Map<String, Object> body = new HashMap<>();
-        body.put("message",e.getMessage());
-        body.put("exception","UploadImageException");
-
-        if(e.getCause() != null)
-            body.put("error", e.getCause().getMessage());
-
-        response.put("FileError", body);
-        return ResponseEntity.status(e.getHttpStatus()).body(response);
+    public ResponseEntity<ProblemDetail> handleUploadImageException(
+            UploadImageException exception,
+            HttpServletRequest request) {
+        ProblemDetail problem = ApiProblem.create(
+                exception.getHttpStatus(),
+                "Image storage error",
+                "image_storage_error",
+                exception.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(exception.getHttpStatus())
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem);
     }
 }

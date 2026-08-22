@@ -6,9 +6,6 @@ import jakarta.transaction.Transactional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-
-import com.nitros64.nitros_games_backend.exception.httpexception.NotFoundException;
 import com.nitros64.nitros_games_backend.shared.domain.Base;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
@@ -23,74 +20,51 @@ public abstract class BaseServiceImpl<E extends Base, ID extends Serializable> i
 
     @Override
     @Transactional
-    public List<E> findAll() throws Exception {
-        try {
-            return this.baseRepository.findAll();
-        } catch (Exception e) {
-             throw new Exception(e.getMessage());
-        }        
+    public List<E> findAll() {
+        return this.baseRepository.findAll();
     }
     
     @Override
     @Transactional
-    public Page<E> findAll(Pageable pageable) throws Exception {
-        try {
-            return this.baseRepository.findAll(pageable);
-        } catch (Exception e) {
-             throw new Exception(e.getMessage());
-        }
+    public Page<E> findAll(Pageable pageable) {
+        return this.baseRepository.findAll(pageable);
     }
 
     @Override
     @Transactional
-    public E findById(ID id) throws Exception {
-        return this.baseRepository.findById(id).orElseThrow( () -> new NotFoundException("Entity Not Found", HttpStatus.NOT_FOUND) );
+    public E findById(ID id) {
+        return this.baseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Entity not found"));
     }
 
     @Override
     @Transactional
-    public E save(E entity) throws Exception {
+    public E save(E entity) {
         return this.baseRepository.save(entity);
     }
 
     @Override
     @Transactional
-    public List<E> saveAll(List<E> entity) throws Exception{
-        //try {            
-            return this.baseRepository.saveAll(entity);
-//        } catch (Exception e) {
-//            throw new Exception(e.getMessage());
-//        }
+    public List<E> saveAll(List<E> entity) {
+        return this.baseRepository.saveAll(entity);
     }
 
     @Override
     @Transactional
-    public E update(ID id, E entity) throws Exception {
-        // try {
-            E entityOptional = this.findById(id);
-            entity.setId(entityOptional.getId());
-            return this.baseRepository.save(entity);
-            
-//        } catch (Exception e) {
-//            throw new Exception(e.getMessage());
-//        }
+    public E update(ID id, E entity) {
+        E entityOptional = this.findById(id);
+        entity.setId(entityOptional.getId());
+        return this.baseRepository.save(entity);
     }
 
     @Override
     @Transactional
-    public boolean delete(ID id) throws Exception {
-         try {             
-            if(this.baseRepository.existsById(id)){
-                this.baseRepository.deleteById(id);
-                return true;
-            }
-            else {
-                new Exception();
-            }
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
+    public boolean delete(ID id) {
+        if (this.baseRepository.existsById(id)) {
+            this.baseRepository.deleteById(id);
+            return true;
         }
-         return false;
+        return false;
     }
     
 }

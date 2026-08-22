@@ -15,9 +15,9 @@ import jakarta.validation.Valid;
 public interface BaseController <E extends Base, ID extends Serializable>{
     ResponseEntity<?> getAll();
     ResponseEntity<?> getAll(Pageable paeable);
-    ResponseEntity<?> getOne(@PathVariable ID id) throws Exception;
-    ResponseEntity<?> save(@Valid @RequestBody E entity) throws Exception;
-    ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity) throws Exception;
-    ResponseEntity<?> update(@PathVariable ID id, @RequestBody E entity) throws Exception;
-    ResponseEntity<?> delete(@PathVariable ID id) throws Exception;
+    ResponseEntity<?> getOne(@PathVariable ID id);
+    ResponseEntity<?> save(@Valid @RequestBody E entity);
+    ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity);
+    ResponseEntity<?> update(@PathVariable ID id, @Valid @RequestBody E entity);
+    ResponseEntity<?> delete(@PathVariable ID id);
 }

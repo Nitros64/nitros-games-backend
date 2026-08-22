@@ -27,60 +27,42 @@ public abstract class BaseControllerImpl<E extends Base, S extends BaseService<E
     @Override
     @GetMapping    
     public ResponseEntity<?> getAll(){ //InvalidDefinitionException
-        try {
-            return ResponseEntity.status(HttpStatus.OK).body(this.servicio.findAll());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{ \"error\": \"Error. Por favor intente mas tarde.\"}");
-        }
+        return ResponseEntity.status(HttpStatus.OK).body(this.servicio.findAll());
     }
     
     @Override
     @GetMapping("/paged")
     public ResponseEntity<?> getAll(Pageable pageable){
-        try {
-            return ResponseEntity.status(HttpStatus.OK).body(this.servicio.findAll(pageable));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{ \"error\": \"Error. Por favor intente mas tarde.\"}");
-        }
+        return ResponseEntity.status(HttpStatus.OK).body(this.servicio.findAll(pageable));
     }
     
     @Override
     @GetMapping("/{id}")
-    public ResponseEntity<?> getOne(@PathVariable Long id) throws Exception {
-        //try {
-            return ResponseEntity.status(HttpStatus.OK).body(servicio.findById(id));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{ \"error\": \"Error. Por favor intente mas tarde.\"}");
-//        }
-        
+    public ResponseEntity<?> getOne(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(servicio.findById(id));
     }
     
     @Override
     @PostMapping(path = "add",consumes = {MediaType.APPLICATION_JSON_VALUE}) //@Valid
-    public ResponseEntity<?> save(@RequestBody E entity) throws Exception { //HttpMessageNotReadableException
+    public ResponseEntity<?> save(@Valid @RequestBody E entity) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servicio.save(entity));
     }
     
     @Override
     @PutMapping("/{id}")
-    public ResponseEntity<?> update (@PathVariable Long id, @RequestBody E entity) throws Exception{
+    public ResponseEntity<?> update (@PathVariable Long id, @Valid @RequestBody E entity) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(servicio.update(id,entity));
     }
     
     @Override
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) throws Exception {
+    public ResponseEntity<?> delete(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(servicio.delete(id));
     }
     
     @Override
     @PostMapping("addAll")
-    public ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity) throws Exception{
-        //try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(this.servicio.saveAll(entity));
-//        } catch (Exception ex) {
-//            System.err.println(ex.getMessage());   
-//            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
-//        }
+    public ResponseEntity<?> saveAll(@RequestBody List<@Valid E> entity) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(this.servicio.saveAll(entity));
     }
 }

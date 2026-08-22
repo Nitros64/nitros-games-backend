@@ -10,8 +10,13 @@ import org.junit.jupiter.api.Test;
 
 import com.nitros64.nitros_games_backend.shared.api.BaseController;
 import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblemWriter;
+import com.nitros64.nitros_games_backend.shared.api.error.ApiValidationViolation;
+import com.nitros64.nitros_games_backend.shared.api.error.RestExceptionHandler;
 import com.nitros64.nitros_games_backend.shared.application.BaseService;
 import com.nitros64.nitros_games_backend.shared.application.BaseServiceImpl;
+import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
 import com.nitros64.nitros_games_backend.shared.domain.Base;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
@@ -24,7 +29,10 @@ class SharedKernelStructureTests {
         assertThat(List.of(
                 Base.class, BaseRepository.class,
                 BaseService.class, BaseServiceImpl.class,
-                BaseController.class, BaseControllerImpl.class))
+                ResourceNotFoundException.class,
+                BaseController.class, BaseControllerImpl.class,
+                ApiProblem.class, ApiProblemWriter.class,
+                ApiValidationViolation.class, RestExceptionHandler.class))
                 .allSatisfy(type -> assertThat(type.getPackageName())
                         .startsWith("com.nitros64.nitros_games_backend.shared."));
     }

@@ -46,6 +46,12 @@ The shared API validates each element of bulk request bodies with
 `List<@Valid E>`. Feature-specific DTOs, entities, repositories and business
 rules must remain in their owning module instead of being promoted to shared.
 
+The shared API also owns the cross-module HTTP error contract. API and Spring
+Security failures are represented as RFC Problem Details with stable error
+codes; validation details never expose rejected values. Feature-specific
+handlers may select a status and code, but must use the same representation.
+The complete contract is documented in `docs/api-errors.md`.
+
 ## Game module
 
 `game` owns game data, game versions and their download links. Its internal
