@@ -13,6 +13,7 @@ PowerShell:
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
 $env:DB_PASSWORD = "your-local-password"
+$env:APP_SECURITY_ADMIN_PASSWORD = "a-long-random-local-password"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -21,6 +22,7 @@ Bash:
 ```shell
 export SPRING_PROFILES_ACTIVE=local
 export DB_PASSWORD=your-local-password
+export APP_SECURITY_ADMIN_PASSWORD=a-long-random-local-password
 ./mvnw spring-boot:run
 ```
 
@@ -43,6 +45,10 @@ environment or a secrets manager:
 - `DB_URL`
 - `DB_USERNAME`
 - `DB_PASSWORD`
+- `APP_STORAGE_HOST_IMAGES_DIRECTORY`
+- `APP_SECURITY_ADMIN_USERNAME`
+- `APP_SECURITY_ADMIN_PASSWORD`
+- `APP_SECURITY_ALLOWED_ORIGINS`
 
 `DB_URL` must use the TLS settings required by the production MySQL provider.
 Production validates the existing schema and never creates or updates it.
@@ -61,6 +67,28 @@ multipart request is limited independently by `APP_STORAGE_MAX_REQUEST_SIZE`
 (default `11MB`, allowing for multipart overhead). PNG, JPEG and GIF are the only
 accepted formats; the adapter verifies both the declared content type and the
 file signature.
+
+## HTTP security
+
+All `GET /api/**` endpoints remain public. `POST`, `PUT` and `DELETE` requests
+require an administrator authenticated with HTTP Basic and the `ADMIN` role.
+The application is stateless and does not create login sessions.
+
+Configure the account with `APP_SECURITY_ADMIN_USERNAME` and a random
+`APP_SECURITY_ADMIN_PASSWORD` of at least 16 characters. Production requires
+both values. HTTP Basic must only be exposed through HTTPS; it is an incremental
+operator-access mechanism, not a replacement for a future user domain or an
+OIDC/JWT identity provider.
+
+Clients must send the `Authorization` header explicitly on each mutation. The
+server does not emit a browser Basic-authentication challenge, does not use
+authentication cookies and does not allow credentialed CORS requests. CSRF is
+therefore disabled for this stateless header-only API contract.
+
+`APP_SECURITY_ALLOWED_ORIGINS` is a comma-separated allowlist of complete web
+origins, for example `https://admin.example.com,https://www.example.com`.
+Wildcards are rejected. Local development defaults to `http://localhost:4200`;
+production requires an explicit allowlist.
 
 ## Credential rotation
 

@@ -72,3 +72,15 @@ The endpoint path, multipart field names and JPA mappings remain unchanged. The
 filesystem adapter uses an externally configured root, generates server-side
 filenames, confines every operation to that root, validates size and image
 signature, and publishes uploads with an atomic move.
+
+## Security module
+
+`security` centralizes authentication, route authorization and CORS instead of
+placing policy annotations in feature controllers. Public API reads use `GET`
+or `HEAD`; all API mutations require the `ADMIN` role. Preflight requests are
+evaluated against an external origin allowlist, and all otherwise unmatched
+routes are denied.
+
+The current administrator is an in-memory operational identity whose password
+is BCrypt-encoded at startup. This boundary can later replace HTTP Basic with an
+OIDC/JWT resource server without changing feature modules.

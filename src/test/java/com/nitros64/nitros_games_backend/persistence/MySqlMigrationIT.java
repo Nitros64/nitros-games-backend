@@ -18,7 +18,10 @@ import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
 @SpringBootTest(properties = {
         "spring.flyway.baseline-on-migrate=false",
         "spring.jpa.hibernate.ddl-auto=validate",
-        "app.storage.host-images.directory=target/test-storage/mysql-it"
+        "app.storage.host-images.directory=target/test-storage/mysql-it",
+        "app.security.admin-username=test-admin",
+        "app.security.admin-password=test-admin-password",
+        "app.security.allowed-origins=http://localhost:4200"
 })
 class MySqlMigrationIT {
 

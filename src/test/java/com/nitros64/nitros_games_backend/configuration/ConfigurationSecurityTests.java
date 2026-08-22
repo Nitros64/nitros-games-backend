@@ -19,8 +19,15 @@ class ConfigurationSecurityTests {
         Properties production = loadProperties("application-prod.properties");
 
         assertNull(common.getProperty("spring.datasource.password"));
+        assertNull(common.getProperty("app.security.admin-password"));
         assertEquals("${DB_PASSWORD}", local.getProperty("spring.datasource.password"));
         assertEquals("${DB_PASSWORD}", production.getProperty("spring.datasource.password"));
+        assertEquals(
+                "${APP_SECURITY_ADMIN_PASSWORD}",
+                local.getProperty("app.security.admin-password"));
+        assertEquals(
+                "${APP_SECURITY_ADMIN_PASSWORD}",
+                production.getProperty("app.security.admin-password"));
     }
 
     @Test
@@ -33,6 +40,12 @@ class ConfigurationSecurityTests {
         assertEquals(
                 "${APP_STORAGE_HOST_IMAGES_DIRECTORY}",
                 properties.getProperty("app.storage.host-images.directory"));
+        assertEquals(
+                "${APP_SECURITY_ADMIN_USERNAME}",
+                properties.getProperty("app.security.admin-username"));
+        assertEquals(
+                "${APP_SECURITY_ALLOWED_ORIGINS}",
+                properties.getProperty("app.security.allowed-origins"));
     }
 
     @Test

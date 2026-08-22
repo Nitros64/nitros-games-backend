@@ -27,7 +27,6 @@ import java.util.Arrays;
 
 @Validated
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping(path = "api/v1/serverhostimage")
 public class ServerHostImageController extends BaseControllerImpl<ServerHostImage, ServerHostImageService>{
 
