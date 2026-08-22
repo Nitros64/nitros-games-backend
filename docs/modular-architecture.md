@@ -52,6 +52,10 @@ codes; validation details never expose rejected values. Feature-specific
 handlers may select a status and code, but must use the same representation.
 The complete contract is documented in `docs/api-errors.md`.
 
+Cross-module Bean Validation constraints and their validators live together in
+`shared.validation`. Feature-specific validation rules remain inside their
+owning module.
+
 ## Game module
 
 `game` owns game data, game versions and their download links. Its internal

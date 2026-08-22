@@ -19,6 +19,8 @@ import com.nitros64.nitros_games_backend.shared.application.BaseServiceImpl;
 import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
 import com.nitros64.nitros_games_backend.shared.domain.Base;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
+import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
+import com.nitros64.nitros_games_backend.shared.validation.NoNumberValidator;
 
 import jakarta.validation.Valid;
 
@@ -32,7 +34,8 @@ class SharedKernelStructureTests {
                 ResourceNotFoundException.class,
                 BaseController.class, BaseControllerImpl.class,
                 ApiProblem.class, ApiProblemWriter.class,
-                ApiValidationViolation.class, RestExceptionHandler.class))
+                ApiValidationViolation.class, RestExceptionHandler.class,
+                NoNumberString.class, NoNumberValidator.class))
                 .allSatisfy(type -> assertThat(type.getPackageName())
                         .startsWith("com.nitros64.nitros_games_backend.shared."));
     }

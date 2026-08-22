@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.nitros64.nitros_games_backend.constrait.NoNumberString;
+import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
 import com.nitros64.nitros_games_backend.storage.application.FileHostImageHandler;
 import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;

@@ -4,7 +4,7 @@ import com.nitros64.nitros_games_backend.shared.domain.Base;
 
 import java.net.URL;
 
-import com.nitros64.nitros_games_backend.constrait.NoNumberString;
+import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;

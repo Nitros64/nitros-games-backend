@@ -2,7 +2,7 @@ package com.nitros64.nitros_games_backend.storage.domain;
 
 import com.nitros64.nitros_games_backend.shared.domain.Base;
 
-import com.nitros64.nitros_games_backend.constrait.NoNumberString;
+import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

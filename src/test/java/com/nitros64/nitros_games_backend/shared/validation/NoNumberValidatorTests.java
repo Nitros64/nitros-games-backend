@@ -1,9 +1,9 @@
-package com.nitros64.nitros_games_backend.validator;
-
-import org.junit.jupiter.api.Test;
+package com.nitros64.nitros_games_backend.shared.validation;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
 
 class NoNumberValidatorTests {
 
