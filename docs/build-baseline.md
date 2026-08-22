@@ -27,7 +27,8 @@ On Windows:
 Tests activate the `test` profile explicitly and use an in-memory H2 database
 in MySQL compatibility mode. Hibernate creates the schema when the test context
 starts and drops it when the context closes. The test profile never uses the
-credentials or database URL from `src/main/resources/application.properties`.
+runtime database configuration. It is fully self-contained under
+`src/test/resources/application-test.properties`.
 
 The baseline currently characterizes:
 
@@ -42,8 +43,8 @@ The baseline currently characterizes:
 - H2 compatibility mode does not prove that Hibernate's generated schema is
   fully compatible with MySQL.
 - There are no migrations yet, so production schema drift is not checked.
-- The current production datasource configuration remains unchanged in this
-  phase.
+- H2 is deliberately limited to the test classpath and cannot be selected in a
+  runtime environment.
 - Security, API redesign and domain refactoring are deliberately outside this
   baseline.
 - Compilation still reports unchecked operations in `CustomExceptionMessage`.
