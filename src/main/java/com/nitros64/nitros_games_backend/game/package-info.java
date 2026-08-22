@@ -3,7 +3,7 @@
  *
  * <p>The module owns games, their versions and download links, together with
  * their application and persistence services. It may depend on public catalog
- * and tooling domain types. The temporary dependency on the legacy host-image
- * entity will be removed when file storage becomes its own module.</p>
+ * and tooling domain types, plus the host-image type exposed by the storage
+ * domain.</p>
  */
 package com.nitros64.nitros_games_backend.game;

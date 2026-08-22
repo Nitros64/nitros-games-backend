@@ -1,7 +1,7 @@
 package com.nitros64.nitros_games_backend.game.domain;
 
-import com.nitros64.nitros_games_backend.model.entity.ServerHostImage;
 import com.nitros64.nitros_games_backend.shared.domain.Base;
+import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

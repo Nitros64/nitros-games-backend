@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.exception.httpexception;
+package com.nitros64.nitros_games_backend.storage.application;
 
 import org.springframework.http.HttpStatus;
 

@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.filehandling;
+package com.nitros64.nitros_games_backend.storage.application;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

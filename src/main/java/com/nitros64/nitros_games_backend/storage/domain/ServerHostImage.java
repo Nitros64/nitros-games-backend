@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.entity;
+package com.nitros64.nitros_games_backend.storage.domain;
 
 import com.nitros64.nitros_games_backend.shared.domain.Base;
 

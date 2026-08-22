@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.filehandling;
+package com.nitros64.nitros_games_backend.storage.application;
 
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;

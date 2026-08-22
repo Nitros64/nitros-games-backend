@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.exception.exceptionhandler;
+package com.nitros64.nitros_games_backend.storage.api;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-import com.nitros64.nitros_games_backend.exception.httpexception.UploadImageException;
+import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 
 import java.util.HashMap;
 import java.util.Map;

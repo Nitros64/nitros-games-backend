@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.filehandling;
+package com.nitros64.nitros_games_backend.storage.infrastructure;
 
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.nitros64.nitros_games_backend.exception.httpexception.UploadImageException;
+import com.nitros64.nitros_games_backend.storage.application.FilesStorageService;
+import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 
 import java.io.IOException;
 import java.net.MalformedURLException;

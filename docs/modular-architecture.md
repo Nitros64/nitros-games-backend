@@ -54,9 +54,21 @@ package will be introduced only when the module exposes HTTP use cases.
 
 The module consumes catalog domain types for genres and development difficulty,
 and tooling domain types for language, platform and processor compatibility.
-`DownloadLink` temporarily references the legacy `ServerHostImage` entity. That
-dependency is recorded explicitly and will be replaced by a stable storage
-module boundary when host images and file handling are extracted.
+`DownloadLink` references the public `ServerHostImage` type owned by the storage
+domain and does not depend on storage application or infrastructure code.
 
 This migration changes Java package ownership only. JPA table names, columns,
 relationships and native SQL remain unchanged.
+
+## Storage module
+
+`storage` owns host-image metadata and the files that back it. Its `api` layer
+contains the multipart endpoint and file-specific exception mapping;
+`application` contains the host-image service and the file-storage port;
+`persistence` owns the JPA repository; and `infrastructure` contains the local
+filesystem adapter.
+
+The existing endpoint path, multipart field names, JPA mappings and filesystem
+behavior remain unchanged during this boundary extraction. Configuration and
+security hardening of the filesystem adapter are intentionally separate changes
+so they can be reviewed and tested independently.

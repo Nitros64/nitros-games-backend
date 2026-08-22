@@ -1,8 +1,7 @@
-package com.nitros64.nitros_games_backend.controllers;
+package com.nitros64.nitros_games_backend.storage.api;
 
 import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
 
-import jdk.jfr.ContentType;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,9 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nitros64.nitros_games_backend.constrait.NoNumberString;
-import com.nitros64.nitros_games_backend.filehandling.FileHostImageHandler;
-import com.nitros64.nitros_games_backend.model.entity.ServerHostImage;
-import com.nitros64.nitros_games_backend.service.impl.ServerHostImageService;
+import com.nitros64.nitros_games_backend.storage.application.FileHostImageHandler;
+import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
+import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
