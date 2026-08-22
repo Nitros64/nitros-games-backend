@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.repositories.customEntityManager;
+package com.nitros64.nitros_games_backend.game.persistence;
 
 public interface IGameVersionDaoEM <S>{
     public S save(S arg0);    

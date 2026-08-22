@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.repositories.customEntityManager;
+package com.nitros64.nitros_games_backend.game.persistence;
 
 import java.math.BigInteger;
 import jakarta.persistence.EntityManager;
@@ -6,7 +6,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.springframework.stereotype.Repository;
 
-import com.nitros64.nitros_games_backend.model.relation_entity.GameVersion;
+import com.nitros64.nitros_games_backend.game.domain.GameVersion;
 
 @Repository("EntityManagerVersion")
 public class GameVersionDaoEMImpl implements IGameVersionDaoEM<GameVersion>

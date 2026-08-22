@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.relation_entity;
+package com.nitros64.nitros_games_backend.game.domain;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -21,8 +21,6 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import com.nitros64.nitros_games_backend.shared.domain.Base;
-import com.nitros64.nitros_games_backend.model.entity.DownloadLink;
-import com.nitros64.nitros_games_backend.model.entity.GameData;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;

@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.entity;
+package com.nitros64.nitros_games_backend.game.domain;
 
 import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
@@ -23,8 +23,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
-
-import com.nitros64.nitros_games_backend.model.relation_entity.GameVersion;
 
 @Entity
 @Table(name = "gamedata")

@@ -45,3 +45,18 @@ It must not depend on `catalog`, `tooling` or future business modules.
 The shared API validates each element of bulk request bodies with
 `List<@Valid E>`. Feature-specific DTOs, entities, repositories and business
 rules must remain in their owning module instead of being promoted to shared.
+
+## Game module
+
+`game` owns game data, game versions and their download links. Its internal
+layers currently comprise `domain`, `application` and `persistence`; an `api`
+package will be introduced only when the module exposes HTTP use cases.
+
+The module consumes catalog domain types for genres and development difficulty,
+and tooling domain types for language, platform and processor compatibility.
+`DownloadLink` temporarily references the legacy `ServerHostImage` entity. That
+dependency is recorded explicitly and will be replaced by a stable storage
+module boundary when host images and file handling are extracted.
+
+This migration changes Java package ownership only. JPA table names, columns,
+relationships and native SQL remain unchanged.

@@ -1,14 +1,14 @@
-package com.nitros64.nitros_games_backend.service;
+package com.nitros64.nitros_games_backend.game.application;
 
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import com.nitros64.nitros_games_backend.model.entity.GameData;
-import com.nitros64.nitros_games_backend.model.relation_entity.GameVersion;
-import com.nitros64.nitros_games_backend.repositories.customEntityManager.IGameVersionDaoEM;
-import com.nitros64.nitros_games_backend.repositories.legacy.GameDataRepository;
+import com.nitros64.nitros_games_backend.game.domain.GameData;
+import com.nitros64.nitros_games_backend.game.domain.GameVersion;
+import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
+import com.nitros64.nitros_games_backend.game.persistence.IGameVersionDaoEM;
 
 @Transactional
 @Service
