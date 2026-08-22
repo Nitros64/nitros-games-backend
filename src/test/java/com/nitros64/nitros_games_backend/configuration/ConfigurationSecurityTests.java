@@ -30,6 +30,9 @@ class ConfigurationSecurityTests {
         assertEquals("${DB_URL}", properties.getProperty("spring.datasource.url"));
         assertEquals("${DB_USERNAME}", properties.getProperty("spring.datasource.username"));
         assertEquals("${DB_PASSWORD}", properties.getProperty("spring.datasource.password"));
+        assertEquals(
+                "${APP_STORAGE_HOST_IMAGES_DIRECTORY}",
+                properties.getProperty("app.storage.host-images.directory"));
     }
 
     @Test

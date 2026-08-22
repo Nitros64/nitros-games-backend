@@ -15,6 +15,7 @@ import com.nitros64.nitros_games_backend.storage.application.ServerHostImageServ
 import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 import com.nitros64.nitros_games_backend.storage.infrastructure.FileHostImageStorage;
+import com.nitros64.nitros_games_backend.storage.infrastructure.StorageProperties;
 import com.nitros64.nitros_games_backend.storage.persistence.ServerHostImageRepository;
 
 class StorageModuleStructureTests {
@@ -29,6 +30,7 @@ class StorageModuleStructureTests {
                 ServerHostImageService.class, FileHostImageHandler.class,
                 FilesStorageService.class, UploadImageException.class,
                 ServerHostImageRepository.class, FileHostImageStorage.class,
+                StorageProperties.class,
                 ServerHostImageController.class, FileExceptionHandler.class);
 
         assertThat(storageTypes)

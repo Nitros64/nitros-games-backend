@@ -68,7 +68,7 @@ contains the multipart endpoint and file-specific exception mapping;
 `persistence` owns the JPA repository; and `infrastructure` contains the local
 filesystem adapter.
 
-The existing endpoint path, multipart field names, JPA mappings and filesystem
-behavior remain unchanged during this boundary extraction. Configuration and
-security hardening of the filesystem adapter are intentionally separate changes
-so they can be reviewed and tested independently.
+The endpoint path, multipart field names and JPA mappings remain unchanged. The
+filesystem adapter uses an externally configured root, generates server-side
+filenames, confines every operation to that root, validates size and image
+signature, and publishes uploads with an atomic move.

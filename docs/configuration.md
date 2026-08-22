@@ -50,6 +50,18 @@ Production validates the existing schema and never creates or updates it.
 Optional pool settings are `DB_POOL_MIN_IDLE`, `DB_POOL_MAX_SIZE`,
 `DB_CONNECTION_TIMEOUT_MS` and `DB_VALIDATION_TIMEOUT_MS`.
 
+## Host-image storage
+
+Production requires `APP_STORAGE_HOST_IMAGES_DIRECTORY` to point to a writable,
+persistent directory mounted outside the application image. Local development
+defaults to `uploadImageFileHost` under the working directory.
+
+Uploads are limited by `APP_STORAGE_MAX_FILE_SIZE` (default `10MB`). The complete
+multipart request is limited independently by `APP_STORAGE_MAX_REQUEST_SIZE`
+(default `11MB`, allowing for multipart overhead). PNG, JPEG and GIF are the only
+accepted formats; the adapter verifies both the declared content type and the
+file signature.
+
 ## Credential rotation
 
 The previous MySQL password was committed and pushed. Removing it from the

@@ -1,5 +1,6 @@
 HELP.md
 target/
+/uploadImageFileHost/
 .env
 .env.*
 !.env.example
