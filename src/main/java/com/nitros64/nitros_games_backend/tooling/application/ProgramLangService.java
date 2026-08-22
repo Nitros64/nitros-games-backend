@@ -1,8 +1,9 @@
-package com.nitros64.nitros_games_backend.service.interfaces;
+package com.nitros64.nitros_games_backend.tooling.application;
 
 import java.util.List;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingLanguage;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
+import com.nitros64.nitros_games_backend.service.interfaces.BaseService;
 
     /********************************************************************************
      *                      PROGRAMMING LANGUAGE SERVICE                            *

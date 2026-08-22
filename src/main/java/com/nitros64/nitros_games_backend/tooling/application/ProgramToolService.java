@@ -1,6 +1,7 @@
-package com.nitros64.nitros_games_backend.service.interfaces;
+package com.nitros64.nitros_games_backend.tooling.application;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingTool;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
+import com.nitros64.nitros_games_backend.service.interfaces.BaseService;
 
 /********************************************************************************/
 /*                      PROGRAMMING TOOL SERVICE                                */

@@ -23,3 +23,15 @@ vertical module has been extracted and their actual common surface is clear.
 
 The architecture test records the current boundary and prevents catalog types
 from being moved back into layer-oriented packages.
+
+## Tooling module
+
+`tooling` owns programming languages, programming tools, tool types and the
+language/platform/processor compatibility associations. It depends on catalog
+domain types for platforms and processors. The game-version model consumes
+tooling domain associations but does not depend on tooling services,
+repositories or API controllers.
+
+Moving the association entities together with their composite ID classes keeps
+the JPA model inside one feature boundary. Existing endpoints, tables and
+foreign-key columns remain unchanged.

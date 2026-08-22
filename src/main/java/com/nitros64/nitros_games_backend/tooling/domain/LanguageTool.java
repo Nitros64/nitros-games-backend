@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.relation_entity;
+package com.nitros64.nitros_games_backend.tooling.domain;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -18,8 +18,6 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingLanguage;
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingTool;
 
 @Entity
 @Table(name = "ToolLang")

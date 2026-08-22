@@ -1,10 +1,10 @@
-package com.nitros64.nitros_games_backend.service.impl;
+package com.nitros64.nitros_games_backend.tooling.application;
 
 import org.springframework.stereotype.Service;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingTool;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 import com.nitros64.nitros_games_backend.repositories.BaseRepository;
-import com.nitros64.nitros_games_backend.service.interfaces.ProgramToolService;
+import com.nitros64.nitros_games_backend.service.impl.BaseServiceImpl;
 
 @Service
 public class ProgramToolServiceImpl extends BaseServiceImpl<ProgrammingTool,Long> implements ProgramToolService {

@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.controllers;
+package com.nitros64.nitros_games_backend.tooling.api;
 
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgramToolType;
-import com.nitros64.nitros_games_backend.service.interfaces.ProgramToolTypeService;
+import com.nitros64.nitros_games_backend.controllers.BaseControllerImpl;
+import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeService;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
 
 @Validated
 @RestController

@@ -1,16 +1,18 @@
-package com.nitros64.nitros_games_backend.repositories.legacy;
+
+package com.nitros64.nitros_games_backend.tooling.persistence;
 
 import org.springframework.stereotype.Repository;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgrammingLanguage;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
 import com.nitros64.nitros_games_backend.repositories.BaseRepository;
 
     /********************************************************************************/
     /*                                                                              */
-    /*                      PROGRAMMING LANGUAGE REPOSITORY                         */
+    /*                  PROGRAMMING TOOL TYPE REPOSITORY                            */
     /*                                                                              */
     /********************************************************************************/
 
 @Repository
-public interface ProgramLangRepository extends BaseRepository<ProgrammingLanguage,Long>{ 
+public interface ProgramToolTypeRepository extends BaseRepository<ProgramToolType,Long>{
+    
 }

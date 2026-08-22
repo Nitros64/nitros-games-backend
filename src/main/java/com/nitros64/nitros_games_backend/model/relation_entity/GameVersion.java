@@ -28,6 +28,9 @@ import org.hibernate.annotations.OnDeleteAction;
 import com.nitros64.nitros_games_backend.model.entity.Base;
 import com.nitros64.nitros_games_backend.model.entity.DownloadLink;
 import com.nitros64.nitros_games_backend.model.entity.GameData;
+import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
+import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
+import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 
 @Entity
 @Table(name = "GameVersion")

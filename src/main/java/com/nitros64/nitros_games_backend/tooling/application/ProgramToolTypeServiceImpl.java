@@ -1,12 +1,12 @@
-package com.nitros64.nitros_games_backend.service.impl;
+package com.nitros64.nitros_games_backend.tooling.application;
 
 import java.util.List;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import com.nitros64.nitros_games_backend.model.entity.ProgramToolType;
+import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
 import com.nitros64.nitros_games_backend.repositories.BaseRepository;
-import com.nitros64.nitros_games_backend.service.interfaces.ProgramToolTypeService;
+import com.nitros64.nitros_games_backend.service.impl.BaseServiceImpl;
 
     /********************************************************************************
      *          PROGRAMMING TOOL TYPE SERVICE IMPLEMENTATION                        *

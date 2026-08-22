@@ -1,20 +1,21 @@
-package com.nitros64.nitros_games_backend.model.relation_entity;
+package com.nitros64.nitros_games_backend.tooling.domain;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-public class ToolPlatformId implements Serializable{
+public class ToolProcessorId implements Serializable{
+    
     private static final long serialVersionUID = -2834827499936993112L;
     
     private Long program_tool;
-    private Long platform;
+    private Long processor;
 
-    public ToolPlatformId(Long program_tool, Long platform) {
-        this.program_tool = program_tool;
-        this.platform = platform;
+    public ToolProcessorId() {
     }
 
-    public ToolPlatformId() {
+    public ToolProcessorId(Long program_tool, Long processor) {
+        this.program_tool = program_tool;
+        this.processor = processor;
     }
 
     public Long getProgram_tool() {
@@ -25,19 +26,19 @@ public class ToolPlatformId implements Serializable{
         this.program_tool = program_tool;
     }
 
-    public Long getPlatform() {
-        return platform;
+    public Long getProcessor() {
+        return processor;
     }
 
-    public void setPlatform(Long platform) {
-        this.platform = platform;
+    public void setProcessor(Long processor) {
+        this.processor = processor;
     }
 
     @Override
     public int hashCode() {
-        int hash = 5;
-        hash = 29 * hash + Objects.hashCode(this.program_tool);
-        hash = 29 * hash + Objects.hashCode(this.platform);
+        int hash = 7;
+        hash = 79 * hash + Objects.hashCode(this.program_tool);
+        hash = 79 * hash + Objects.hashCode(this.processor);
         return hash;
     }
 
@@ -52,13 +53,15 @@ public class ToolPlatformId implements Serializable{
         if (getClass() != obj.getClass()) {
             return false;
         }
-        final ToolPlatformId other = (ToolPlatformId) obj;
+        final ToolProcessorId other = (ToolProcessorId) obj;
         if (!Objects.equals(this.program_tool, other.program_tool)) {
             return false;
         }
-        if (!Objects.equals(this.platform, other.platform)) {
+        if (!Objects.equals(this.processor, other.processor)) {
             return false;
         }
         return true;
     }
+    
+    
 }

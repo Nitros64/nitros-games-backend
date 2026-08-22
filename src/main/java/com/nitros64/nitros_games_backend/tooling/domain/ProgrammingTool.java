@@ -1,4 +1,6 @@
-package com.nitros64.nitros_games_backend.model.entity;
+package com.nitros64.nitros_games_backend.tooling.domain;
+
+import com.nitros64.nitros_games_backend.model.entity.Base;
 
 import java.net.URL;
 

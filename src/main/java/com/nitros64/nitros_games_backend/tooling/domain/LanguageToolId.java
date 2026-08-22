@@ -1,4 +1,4 @@
-package com.nitros64.nitros_games_backend.model.relation_entity;
+package com.nitros64.nitros_games_backend.tooling.domain;
 
 import java.io.Serializable;
 import java.util.Objects;
