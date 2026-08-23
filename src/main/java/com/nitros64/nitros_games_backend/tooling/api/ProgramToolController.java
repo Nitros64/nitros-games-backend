@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
+import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolRequest;
 import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolResponse;
 import com.nitros64.nitros_games_backend.tooling.api.mapper.ProgrammingToolApiMapper;
@@ -73,15 +74,15 @@ public class ProgramToolController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProgrammingToolResponse> getOne(@PathVariable Long id) {
+    public ResponseEntity<ProgrammingToolResponse> getOne(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
     @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProgrammingToolResponse> save(
             @Valid @RequestBody ProgrammingToolRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mapper.toResponse(service.create(mapper.toCommand(request))));
+        var response = mapper.toResponse(service.create(mapper.toCommand(request)));
+        return ApiResponse.created(response, "/api/v1/programmingtools/{id}", response.id());
     }
 
     @PostMapping("addAll")
@@ -94,14 +95,14 @@ public class ProgramToolController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProgrammingToolResponse> update(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody ProgrammingToolRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(mapper.toResponse(service.updateFromCommand(id, mapper.toCommand(request))));
+        return ResponseEntity.ok(
+                mapper.toResponse(service.updateFromCommand(id, mapper.toCommand(request))));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @Positive Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

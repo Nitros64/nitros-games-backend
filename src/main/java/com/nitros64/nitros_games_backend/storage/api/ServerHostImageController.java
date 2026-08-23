@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
+import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
 import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageNameRequest;
 import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageResponse;
@@ -28,6 +29,7 @@ import com.nitros64.nitros_games_backend.storage.application.ServerHostImageServ
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 @RestController
@@ -65,7 +67,7 @@ public class ServerHostImageController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ServerHostImageResponse> getOne(@PathVariable Long id) {
+    public ResponseEntity<ServerHostImageResponse> getOne(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
@@ -85,31 +87,29 @@ public class ServerHostImageController {
     @PostMapping(path = "upload_image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> upload(
             @Valid @ModelAttribute ServerHostImageUploadRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mapper.toResponse(service.create(request.name(), request.fileHostImage())));
+        var response = mapper.toResponse(service.create(request.name(), request.fileHostImage()));
+        return ApiResponse.created(response, "/api/v1/serverhostimage/{id}", response.id());
     }
 
     @PutMapping(path = "upload_image/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> updateImage(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @ModelAttribute ServerHostImageUploadRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(mapper.toResponse(service.updateImage(
-                        id,
-                        request.name(),
-                        request.fileHostImage())));
+        return ResponseEntity.ok(mapper.toResponse(service.updateImage(
+                id,
+                request.name(),
+                request.fileHostImage())));
     }
 
     @PutMapping(path = "update_name/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> updateName(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @ModelAttribute ServerHostImageNameRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(mapper.toResponse(service.updateName(id, request.name())));
+        return ResponseEntity.ok(mapper.toResponse(service.updateName(id, request.name())));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @Positive Long id) {
         service.deleteWithFile(id);
         return ResponseEntity.noContent().build();
     }

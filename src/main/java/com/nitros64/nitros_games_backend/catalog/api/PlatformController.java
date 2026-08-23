@@ -21,10 +21,12 @@ import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformRequest;
 import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformResponse;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.PlatformApiMapper;
 import com.nitros64.nitros_games_backend.catalog.application.PlatformService;
+import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 @RestController
@@ -60,14 +62,14 @@ public class PlatformController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PlatformResponse> getOne(@PathVariable Long id) {
+    public ResponseEntity<PlatformResponse> getOne(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
     @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PlatformResponse> save(@Valid @RequestBody PlatformRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mapper.toResponse(service.save(mapper.toEntity(request))));
+        var response = mapper.toResponse(service.save(mapper.toEntity(request)));
+        return ApiResponse.created(response, "/api/v1/platform/{id}", response.id());
     }
 
     @PostMapping("addAll")
@@ -80,14 +82,13 @@ public class PlatformController {
 
     @PutMapping("/{id}")
     public ResponseEntity<PlatformResponse> update(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody PlatformRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(mapper.toResponse(service.update(id, mapper.toEntity(request))));
+        return ResponseEntity.ok(mapper.toResponse(service.update(id, mapper.toEntity(request))));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @Positive Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

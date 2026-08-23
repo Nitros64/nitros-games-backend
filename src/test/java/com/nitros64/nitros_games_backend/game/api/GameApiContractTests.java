@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import java.net.URI;
 
@@ -106,6 +108,9 @@ class GameApiContractTests {
     @Test
     void completeLifecycleUsesNestedResourcesAndCascadesDeletion() throws Exception {
         createGame("Nitro Game").andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost/api/v1/games/[0-9]+")))
                 .andExpect(jsonPath("$.description").value("Great game"))
                 .andExpect(jsonPath("$.developmentDifficultyId").value(difficulty.getId()))
                 .andExpect(jsonPath("$.genreIds.length()").value(1));
@@ -115,6 +120,9 @@ class GameApiContractTests {
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(versionJson("Version One", platform.getId())))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost/api/v1/games/[0-9]+/versions/[0-9]+")))
                 .andExpect(jsonPath("$.gameId").value(game.getId()))
                 .andExpect(jsonPath("$.programmingToolId").value(tool.getId()));
         var version = versionRepository.findAll().getFirst();
@@ -124,6 +132,10 @@ class GameApiContractTests {
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(downloadLinkJson("https://files.example/game.zip")))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern(
+                                "http://localhost/api/v1/games/[0-9]+/versions/[0-9]+/download-links/[0-9]+")))
                 .andExpect(jsonPath("$.gameVersionId").value(version.getId()))
                 .andExpect(jsonPath("$.serverHostImageId").value(hostImage.getId()));
 
@@ -139,19 +151,19 @@ class GameApiContractTests {
                         game.getId(), version.getId())
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(versionJson("Version Two", platform.getId())))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Version Two"));
         mvc.perform(put("/api/v1/games/{gameId}/versions/{versionId}/download-links/{linkId}",
                         game.getId(), version.getId(), link.getId())
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(downloadLinkJson("https://files.example/game-v2.zip")))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.link").value("https://files.example/game-v2.zip"));
 
         mvc.perform(put("/api/v1/games/{gameId}", game.getId())
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(gameJson("Nitro Updated")))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Nitro Updated"));
 
         mvc.perform(delete("/api/v1/games/{gameId}", game.getId()).with(admin()))
@@ -166,6 +178,13 @@ class GameApiContractTests {
         createGame("First Game").andExpect(status().isCreated());
         createGame("Second Game").andExpect(status().isCreated());
         assertThat(gameRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void pathIdentifiersMustBePositive() throws Exception {
+        mvc.perform(get("/api/v1/games/0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
     }
 
     @Test

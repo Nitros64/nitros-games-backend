@@ -6,8 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import java.util.stream.Stream;
 import java.net.URI;
@@ -194,6 +196,9 @@ class ToolingApiContractTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(nameJson(initialName)))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost" + basePath + "/[0-9]+")))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value(initialName))
                 .andExpect(jsonPath("$.length()").value(2))
@@ -210,7 +215,7 @@ class ToolingApiContractTests {
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(nameJson(updatedName)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.longValue()))
                 .andExpect(jsonPath("$.name").value(updatedName));
 
@@ -252,6 +257,9 @@ class ToolingApiContractTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(toolJson("Eclipse", "https://eclipse.example", "eclipse.png", compilerId)))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost/api/v1/programmingtools/[0-9]+")))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value("Eclipse"))
                 .andExpect(jsonPath("$.webPage").value("https://eclipse.example"))
@@ -266,7 +274,7 @@ class ToolingApiContractTests {
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(toolJson("NetBeans", "https://netbeans.example", "netbeans.png", debuggerId)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(toolId.longValue()))
                 .andExpect(jsonPath("$.name").value("NetBeans"))
                 .andExpect(jsonPath("$.toolTypeId").value(debuggerId));

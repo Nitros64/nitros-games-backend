@@ -97,7 +97,9 @@ public class SecurityConfiguration {
                 "Authorization",
                 "Content-Type",
                 RequestCorrelationFilter.REQUEST_ID_HEADER));
-        configuration.setExposedHeaders(List.of(RequestCorrelationFilter.REQUEST_ID_HEADER));
+        configuration.setExposedHeaders(List.of(
+                RequestCorrelationFilter.REQUEST_ID_HEADER,
+                "Location"));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
