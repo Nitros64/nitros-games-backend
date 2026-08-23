@@ -31,7 +31,7 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @Validated
-@RequestMapping("api/v1/developmentdifficulty")
+@RequestMapping({"/api/v1/development-difficulties", "/api/v1/developmentdifficulty"})
 public class DevelopmentDifficultyController {
 
     private final DevelopmentDifficultyService service;
@@ -68,17 +68,17 @@ public class DevelopmentDifficultyController {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
-    @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = {"", "/add"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DevelopmentDifficultyResponse> save(
             @Valid @RequestBody DevelopmentDifficultyRequest request) {
         var response = mapper.toResponse(service.save(mapper.toEntity(request)));
         return ApiResponse.created(
                 response,
-                "/api/v1/developmentdifficulty/{id}",
+                "/api/v1/development-difficulties/{id}",
                 response.id());
     }
 
-    @PostMapping("addAll")
+    @PostMapping({"/batch", "/addAll"})
     public ResponseEntity<List<DevelopmentDifficultyResponse>> saveAll(
             @RequestBody List<@Valid DevelopmentDifficultyRequest> requests) {
         var entities = requests.stream().map(mapper::toEntity).toList();

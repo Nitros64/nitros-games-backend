@@ -67,14 +67,14 @@ class StorageApiContractTests {
 
     @Test
     void completeLifecycleKeepsDatabaseAndFilesystemConsistent() throws Exception {
-        String createdJson = mockMvc.perform(multipart("/api/v1/serverhostimage/upload_image")
+        String createdJson = mockMvc.perform(multipart("/api/v1/server-host-images")
                     .file(validPng("host.png"))
                     .param("name", "MediaFire")
                     .with(admin()))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
                         "Location",
-                        matchesPattern("http://localhost/api/v1/serverhostimage/[0-9]+")))
+                        matchesPattern("http://localhost/api/v1/server-host-images/[0-9]+")))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value("MediaFire"))
                 .andExpect(jsonPath("$.imagepath").isString())
@@ -84,7 +84,7 @@ class StorageApiContractTests {
         String originalFilename = JsonPath.read(createdJson, "$.imagepath");
         assertThat(STORAGE_DIRECTORY.resolve(originalFilename)).exists();
 
-        mockMvc.perform(multipart("/api/v1/serverhostimage/update_name/" + id.longValue())
+        mockMvc.perform(multipart("/api/v1/server-host-images/" + id.longValue() + "/name")
                     .param("name", "Dropbox")
                     .with(admin())
                     .with(request -> {
@@ -97,7 +97,7 @@ class StorageApiContractTests {
                 .andExpect(jsonPath("$.imagepath").value(originalFilename));
 
         String updatedJson = mockMvc.perform(multipart(
-                        "/api/v1/serverhostimage/upload_image/" + id.longValue())
+                        "/api/v1/server-host-images/" + id.longValue() + "/image")
                     .file(validPng("replacement.png"))
                     .param("name", "Dropbox")
                     .with(admin())
@@ -115,15 +115,15 @@ class StorageApiContractTests {
         assertThat(STORAGE_DIRECTORY.resolve(originalFilename)).doesNotExist();
         assertThat(STORAGE_DIRECTORY.resolve(replacementFilename)).exists();
 
-        mockMvc.perform(get("/api/v1/serverhostimage/" + id.longValue()))
+        mockMvc.perform(get("/api/v1/server-host-images/" + id.longValue()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Dropbox"))
                 .andExpect(jsonPath("$.imagepath").value(replacementFilename));
-        mockMvc.perform(get("/api/v1/serverhostimage/paged").param("size", "10"))
+        mockMvc.perform(get("/api/v1/server-host-images/paged").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.totalElements").value(1));
-        mockMvc.perform(get("/api/v1/serverhostimage/search")
+        mockMvc.perform(get("/api/v1/server-host-images/search")
                         .param("name", "ROP")
                         .param("size", "500"))
                 .andExpect(status().isOk())
@@ -132,7 +132,7 @@ class StorageApiContractTests {
                 .andExpect(jsonPath("$.content[0].name").value("Dropbox"))
                 .andExpect(jsonPath("$.size").value(100));
 
-        mockMvc.perform(delete("/api/v1/serverhostimage/" + id.longValue()).with(admin()))
+        mockMvc.perform(delete("/api/v1/server-host-images/" + id.longValue()).with(admin()))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
         assertThat(STORAGE_DIRECTORY.resolve(replacementFilename)).doesNotExist();

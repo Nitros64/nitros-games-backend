@@ -117,7 +117,7 @@ class ToolingApiContractTests {
         linkCompatibility(pyCharm, python, linux, x64);
         linkCompatibility(gradle, java, linux, x64);
 
-        mockMvc.perform(get("/api/v1/programmingtools/search")
+        mockMvc.perform(get("/api/v1/programming-tools/search")
                     .param("name", "grad")
                     .param("toolTypeId", build.getId().toString())
                     .param("languageId", java.getId().toString())
@@ -130,7 +130,7 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.content[0].toolTypeId").value(build.getId()))
                 .andExpect(jsonPath("$.totalElements").value(1));
 
-        mockMvc.perform(get("/api/v1/programmingtools/search")
+        mockMvc.perform(get("/api/v1/programming-tools/search")
                     .param("toolTypeId", ide.getId().toString())
                     .param("size", "500")
                     .param("sort", "name,asc"))
@@ -140,7 +140,7 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.content[1].name").value("PyCharm"))
                 .andExpect(jsonPath("$.size").value(100));
 
-        mockMvc.perform(get("/api/v1/programmingtools/search")
+        mockMvc.perform(get("/api/v1/programming-tools/search")
                     .param("processorId", arm.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isEmpty())
@@ -149,7 +149,7 @@ class ToolingApiContractTests {
 
     @Test
     void programmingToolSearchRejectsInvalidFilterIdentifiers() throws Exception {
-        mockMvc.perform(get("/api/v1/programmingtools/search")
+        mockMvc.perform(get("/api/v1/programming-tools/search")
                     .param("toolTypeId", "0"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"));
@@ -164,19 +164,19 @@ class ToolingApiContractTests {
                 new ProgramToolType("Compiler"),
                 new ProgramToolType("Debugger")));
 
-        mockMvc.perform(get("/api/v1/programlanguages/search")
+        mockMvc.perform(get("/api/v1/programming-languages/search")
                     .param("name", "AVA"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("Java"));
 
-        mockMvc.perform(get("/api/v1/programtooltypes/search")
+        mockMvc.perform(get("/api/v1/programming-tool-types/search")
                     .param("name", "PILE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("Compiler"));
 
-        mockMvc.perform(get("/api/v1/programlanguages/search")
+        mockMvc.perform(get("/api/v1/programming-languages/search")
                     .param("name", " "))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"));
@@ -191,7 +191,7 @@ class ToolingApiContractTests {
             String bulkNameOne,
             String bulkNameTwo) throws Exception {
         String basePath = "/api/v1/" + resource;
-        String createdJson = mockMvc.perform(post(basePath + "/add")
+        String createdJson = mockMvc.perform(post(basePath)
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(nameJson(initialName)))
@@ -219,7 +219,7 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.id").value(id.longValue()))
                 .andExpect(jsonPath("$.name").value(updatedName));
 
-        mockMvc.perform(post(basePath + "/addAll")
+        mockMvc.perform(post(basePath + "/batch")
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("[" + nameJson(bulkNameOne) + "," + nameJson(bulkNameTwo) + "]"))
@@ -252,14 +252,14 @@ class ToolingApiContractTests {
         long compilerId = createToolType("Compiler");
         long debuggerId = createToolType("Debugger");
 
-        String createdJson = mockMvc.perform(post("/api/v1/programmingtools/add")
+        String createdJson = mockMvc.perform(post("/api/v1/programming-tools")
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(toolJson("Eclipse", "https://eclipse.example", "eclipse.png", compilerId)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
                         "Location",
-                        matchesPattern("http://localhost/api/v1/programmingtools/[0-9]+")))
+                        matchesPattern("http://localhost/api/v1/programming-tools/[0-9]+")))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value("Eclipse"))
                 .andExpect(jsonPath("$.webPage").value("https://eclipse.example"))
@@ -270,7 +270,7 @@ class ToolingApiContractTests {
                 .andReturn().getResponse().getContentAsString();
         Number toolId = JsonPath.read(createdJson, "$.id");
 
-        mockMvc.perform(put("/api/v1/programmingtools/" + toolId.longValue())
+        mockMvc.perform(put("/api/v1/programming-tools/" + toolId.longValue())
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(toolJson("NetBeans", "https://netbeans.example", "netbeans.png", debuggerId)))
@@ -279,7 +279,7 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.name").value("NetBeans"))
                 .andExpect(jsonPath("$.toolTypeId").value(debuggerId));
 
-        mockMvc.perform(post("/api/v1/programmingtools/addAll")
+        mockMvc.perform(post("/api/v1/programming-tools/batch")
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("["
@@ -292,23 +292,23 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$[0].toolTypeId").value(compilerId))
                 .andExpect(jsonPath("$[1].toolTypeId").value(debuggerId));
 
-        mockMvc.perform(get("/api/v1/programmingtools/paged").param("size", "2"))
+        mockMvc.perform(get("/api/v1/programming-tools/paged").param("size", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(2))
                 .andExpect(jsonPath("$.content[0].toolTypeId").isNumber())
                 .andExpect(jsonPath("$.totalElements").value(3));
 
-        mockMvc.perform(delete("/api/v1/programmingtools/" + toolId.longValue()).with(admin()))
+        mockMvc.perform(delete("/api/v1/programming-tools/" + toolId.longValue()).with(admin()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/programtooltypes/" + debuggerId))
+        mockMvc.perform(get("/api/v1/programming-tool-types/" + debuggerId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Debugger"));
     }
 
     @Test
     void programmingToolRejectsUnknownToolType() throws Exception {
-        mockMvc.perform(post("/api/v1/programmingtools/add")
+        mockMvc.perform(post("/api/v1/programming-tools")
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(toolJson("Eclipse", "https://eclipse.example", "eclipse.png", 9999)))
@@ -320,7 +320,7 @@ class ToolingApiContractTests {
     @ParameterizedTest(name = "{0} validates its request DTO")
     @MethodSource("validationCases")
     void requestDtoOwnsValidation(String resource, String body) throws Exception {
-        mockMvc.perform(post("/api/v1/" + resource + "/add")
+        mockMvc.perform(post("/api/v1/" + resource)
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -329,23 +329,37 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.code").value("validation_failed"));
     }
 
+    @ParameterizedTest(name = "legacy tooling route {0} remains available")
+    @MethodSource("legacyToolingResources")
+    void legacyRoutesRemainAvailable(String resource) throws Exception {
+        mockMvc.perform(get("/api/v1/" + resource))
+                .andExpect(status().isOk());
+    }
+
     private static Stream<Arguments> namedResources() {
         return Stream.of(
-                Arguments.of("programlanguages", "Java", "Python", "Kotlin", "Swift"),
-                Arguments.of("programtooltypes", "Editor", "Compiler", "Debugger", "Profiler"));
+                Arguments.of("programming-languages", "Java", "Python", "Kotlin", "Swift"),
+                Arguments.of("programming-tool-types", "Editor", "Compiler", "Debugger", "Profiler"));
     }
 
     private static Stream<Arguments> validationCases() {
         return Stream.of(
-                Arguments.of("programlanguages", "{\"name\":\"Java17\"}"),
-                Arguments.of("programtooltypes", "{\"name\":\"Type2\"}"),
-                Arguments.of("programmingtools",
+                Arguments.of("programming-languages", "{\"name\":\"Java17\"}"),
+                Arguments.of("programming-tool-types", "{\"name\":\"Type2\"}"),
+                Arguments.of("programming-tools",
                         "{\"name\":\"Tool2\",\"webPage\":\"https://tool.example\","
                                 + "\"imagefilePath\":\"tool.png\",\"toolTypeId\":1}"));
     }
 
+    private static Stream<Arguments> legacyToolingResources() {
+        return Stream.of(
+                Arguments.of("programlanguages"),
+                Arguments.of("programtooltypes"),
+                Arguments.of("programmingtools"));
+    }
+
     private long createToolType(String name) throws Exception {
-        String json = mockMvc.perform(post("/api/v1/programtooltypes/add")
+        String json = mockMvc.perform(post("/api/v1/programming-tool-types")
                     .with(admin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(nameJson(name)))

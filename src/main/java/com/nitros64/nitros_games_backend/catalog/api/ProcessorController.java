@@ -31,7 +31,7 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @Validated
-@RequestMapping("api/v1/processor")
+@RequestMapping({"/api/v1/processors", "/api/v1/processor"})
 public class ProcessorController {
 
     private final ProcessorService service;
@@ -66,13 +66,13 @@ public class ProcessorController {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
-    @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = {"", "/add"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProcessorResponse> save(@Valid @RequestBody ProcessorRequest request) {
         var response = mapper.toResponse(service.save(mapper.toEntity(request)));
-        return ApiResponse.created(response, "/api/v1/processor/{id}", response.id());
+        return ApiResponse.created(response, "/api/v1/processors/{id}", response.id());
     }
 
-    @PostMapping("addAll")
+    @PostMapping({"/batch", "/addAll"})
     public ResponseEntity<List<ProcessorResponse>> saveAll(
             @RequestBody List<@Valid ProcessorRequest> requests) {
         var entities = requests.stream().map(mapper::toEntity).toList();
