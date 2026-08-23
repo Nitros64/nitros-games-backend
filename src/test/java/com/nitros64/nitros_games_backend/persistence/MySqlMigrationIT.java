@@ -2,6 +2,7 @@ package com.nitros64.nitros_games_backend.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.hibernate.Hibernate;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,9 +25,13 @@ import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
+import com.nitros64.nitros_games_backend.game.persistence.DownloadLinkRepository;
+import com.nitros64.nitros_games_backend.game.persistence.GameVersionRepository;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 import com.nitros64.nitros_games_backend.storage.persistence.ServerHostImageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
+
+import jakarta.persistence.EntityManager;
 
 @Testcontainers
 @SpringBootTest(properties = {
@@ -67,6 +72,15 @@ class MySqlMigrationIT {
 
     @Autowired
     private GameDataRepository gameDataRepository;
+
+    @Autowired
+    private GameVersionRepository gameVersionRepository;
+
+    @Autowired
+    private DownloadLinkRepository downloadLinkRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Autowired
     private ServerHostImageRepository serverHostImageRepository;
@@ -213,6 +227,87 @@ class MySqlMigrationIT {
                     .extracting(GameGenre::getName)
                     .isEqualTo("Strategy");
         });
+    }
+
+    @Test
+    void gameHierarchyQueriesRunAgainstMySqlWithoutUnnecessaryLoading() {
+        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
+        jdbcTemplate.update("insert into programtool_type (name) values (?)", "Engine");
+        jdbcTemplate.update("insert into program_lang (name) values (?)", "Java");
+        jdbcTemplate.update("insert into platform (name) values (?)", "Windows");
+        jdbcTemplate.update("insert into processor (name) values (?)", "x86-64");
+        jdbcTemplate.update(
+                "insert into server_hostimage (imagepath, name) values (?, ?)",
+                "mediafire.png", "MediaFire");
+
+        Long difficultyId = id("dev_difficulty", "Medium");
+        Long typeId = id("programtool_type", "Engine");
+        Long languageId = id("program_lang", "Java");
+        Long platformId = id("platform", "Windows");
+        Long processorId = id("processor", "x86-64");
+        Long hostImageId = id("server_hostimage", "MediaFire");
+
+        jdbcTemplate.update("""
+                insert into gamedata
+                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
+                values (?, ?, ?, ?, ?)
+                """, "First game", 2, false, "First Game", difficultyId);
+        jdbcTemplate.update("""
+                insert into gamedata
+                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
+                values (?, ?, ?, ?, ?)
+                """, "Second game", 2, false, "Second Game", difficultyId);
+        Long firstGameId = id("gamedata", "First Game");
+        Long secondGameId = id("gamedata", "Second Game");
+
+        jdbcTemplate.update("""
+                insert into program_tool
+                    (imagefile_path, name, web_page, fk_gametooltype)
+                values (?, ?, ?, ?)
+                """, "libgdx.png", "LibGDX", "https://libgdx.com", typeId);
+        Long toolId = id("program_tool", "LibGDX");
+        jdbcTemplate.update(
+                "insert into tool_lang (program_lang_id, program_tool_id) values (?, ?)",
+                languageId, toolId);
+        jdbcTemplate.update(
+                "insert into tool_platform (fk_idplatform, fk_idtool) values (?, ?)",
+                platformId, toolId);
+        jdbcTemplate.update(
+                "insert into tool_processor (fk_idprocessor, fk_idtool) values (?, ?)",
+                processorId, toolId);
+        jdbcTemplate.update("""
+                insert into game_version
+                    (name, fk_gamedata, fk_idlang, fk_idtool, fk_idplatform, fk_idprocessor)
+                values (?, ?, ?, ?, ?, ?)
+                """, "Version One", firstGameId, languageId, toolId, platformId, processorId);
+        Long versionId = id("game_version", "Version One");
+        jdbcTemplate.update("""
+                insert into download_link (link, fk_gameversion, fk_host_image)
+                values (?, ?, ?)
+                """, "https://files.example/game.zip", versionId, hostImageId);
+
+        entityManager.clear();
+        var detailed = gameVersionRepository.findDetailedByIdAndGameId(
+                versionId, firstGameId).orElseThrow();
+        assertThat(detailed.getLanguageTool().getProgrammingLanguage().getName())
+                .isEqualTo("Java");
+        assertThat(detailed.getLanguageTool().getProgrammingTool().getName())
+                .isEqualTo("LibGDX");
+
+        entityManager.clear();
+        var owned = gameVersionRepository.findOwnedByIdAndGameId(
+                versionId, firstGameId).orElseThrow();
+        assertThat(Hibernate.isInitialized(owned.getLanguageTool())).isFalse();
+        assertThat(Hibernate.isInitialized(owned.getToolPlatform())).isFalse();
+        assertThat(Hibernate.isInitialized(owned.getToolProcessor())).isFalse();
+
+        entityManager.clear();
+        assertThat(downloadLinkRepository.findAllDetailedByHierarchy(versionId, firstGameId))
+                .singleElement()
+                .satisfies(link -> assertThat(link.getServerImage().getName())
+                        .isEqualTo("MediaFire"));
+        assertThat(downloadLinkRepository.findAllDetailedByHierarchy(versionId, secondGameId))
+                .isEmpty();
     }
 
     @Test
