@@ -7,5 +7,5 @@ import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
 @Repository
 public interface DownloadLinkRepository extends BaseRepository<DownloadLink, Long> {
-    
+    java.util.List<DownloadLink> findAllByGameVersionIdOrderById(Long gameVersionId);
 }

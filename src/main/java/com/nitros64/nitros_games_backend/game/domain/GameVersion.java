@@ -11,8 +11,6 @@ import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,66 +30,52 @@ import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 @Setter
 @Getter
 public class GameVersion extends Base {
-    private static final long serialVersionUID = 1L; 
-    
-    @NotEmpty(message = "no puede estar vacio")
-    @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-    @Column(nullable = false, unique = false)
+    private static final long serialVersionUID = 1L;
+
+    @Column(nullable = false)
     private String name;
     
-    @ManyToOne (optional = false, 
-                //cascade=CascadeType.ALL,
-                fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "fk_gamedata")
-    private GameData gamedata;
+    private GameData game;
     
     @JoinColumns({
         @JoinColumn(name = "fk_idlang", referencedColumnName = "program_lang_id"),
         @JoinColumn(name = "fk_idtool", referencedColumnName = "program_tool_id")})
-    @ManyToOne(optional = false, 
-            //cascade = CascadeType.ALL,
-            fetch=FetchType.LAZY)
-    private LanguageTool lang_tool;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private LanguageTool languageTool;
     
     @JoinColumns({
         @JoinColumn(name = "fk_idtool", referencedColumnName = "fk_idtool", insertable = false, updatable = false),
-        @JoinColumn(name = "fk_idprocessor", referencedColumnName = "fk_idprocessor", insertable = false, updatable = false )})
-    @ManyToOne(optional = false, 
-            //cascade = CascadeType.ALL,
-            fetch=FetchType.LAZY)
-    private ToolProcessor toolprocessor;
+        @JoinColumn(name = "fk_idprocessor", referencedColumnName = "fk_idprocessor", insertable = false, updatable = false)})
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private ToolProcessor toolProcessor;
+
+    @Column(name = "fk_idprocessor", nullable = false)
+    private Long processorId;
     
     @JoinColumns({
         @JoinColumn(name = "fk_idtool", referencedColumnName = "fk_idtool", insertable = false, updatable = false),
-        @JoinColumn(name = "fk_idplatform", referencedColumnName = "fk_idplatform", insertable = false, updatable = false )})
-    @ManyToOne(optional = false, 
-            //cascade = CascadeType.ALL,
-            fetch=FetchType.LAZY)
-    private ToolPlatform toolplatform;
+        @JoinColumn(name = "fk_idplatform", referencedColumnName = "fk_idplatform", insertable = false, updatable = false)})
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private ToolPlatform toolPlatform;
 
+    @Column(name = "fk_idplatform", nullable = false)
+    private Long platformId;
 
-    //LISTA COMPLETA DE LOS DIFERENTES ENLACES DONDE SE ENCUENTRA EL JUEGO HOSTEADO
-    @OneToMany(mappedBy = "gameversion", 
+    @OneToMany(mappedBy = "gameVersion",
                cascade = CascadeType.ALL,
                fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Set<DownloadLink> downloadLinks = new HashSet<>();
     
-    public GameVersion(String name, LanguageTool lang_tool, ToolProcessor toolprocessor, ToolPlatform toolplatform) {
-        this.name = name;
-        this.lang_tool = lang_tool;
-        this.toolprocessor = toolprocessor;
-        this.toolplatform = toolplatform;
-    }   
-    
-    public void addDownloadLink(DownloadLink dl){
-        this.downloadLinks.add(dl);
-        dl.setGameversion(this);
+    public void addDownloadLink(DownloadLink downloadLink) {
+        this.downloadLinks.add(downloadLink);
+        downloadLink.setGameVersion(this);
     }
-    
-    public void removeDownloadLink(DownloadLink dl){
-        this.downloadLinks.remove(dl);
-        dl.setGameversion(null);
-    } 
-    
+
+    public void removeDownloadLink(DownloadLink downloadLink) {
+        this.downloadLinks.remove(downloadLink);
+        downloadLink.setGameVersion(null);
+    }
 }

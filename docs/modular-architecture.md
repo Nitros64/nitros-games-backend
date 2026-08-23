@@ -75,17 +75,23 @@ owning module.
 
 ## Game module
 
-`game` owns game data, game versions and their download links. Its internal
-layers currently comprise `domain`, `application` and `persistence`; an `api`
-package will be introduced only when the module exposes HTTP use cases.
+`game` owns game data, game versions and their download links. Its HTTP API is
+rooted at `/api/v1/games`; versions and download links are nested resources so
+that their aggregate ownership is explicit. Requests refer to catalog, tooling
+and storage resources by identifier, while responses expose module-owned DTOs
+instead of JPA entities.
 
 The module consumes catalog domain types for genres and development difficulty,
 and tooling domain types for language, platform and processor compatibility.
 `DownloadLink` references the public `ServerHostImage` type owned by the storage
 domain and does not depend on storage application or infrastructure code.
 
-This migration changes Java package ownership only. JPA table names, columns,
-relationships and native SQL remain unchanged.
+The application layer resolves every referenced resource transactionally and
+checks that language, platform and processor associations all belong to the
+selected programming tool. Standard JPA persistence replaces the former native
+insert implementation. Database names remain compatible; migration V2 removes
+the accidental uniqueness constraint that prevented two games from sharing a
+development difficulty.
 
 ## Storage module
 
