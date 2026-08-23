@@ -1,55 +1,77 @@
 # Nitros Games Backend
 
 API REST de `nitrosgames64.com` para administrar juegos, versiones, enlaces de
-descarga, catálogos técnicos, herramientas de programación e imágenes de los
+descarga, catálogos técnicos, herramientas de programación e imágenes de
 servicios de alojamiento.
 
-El proyecto se está evolucionando como un **monolito modular**: se despliega
-como una única aplicación Spring Boot, pero el código está organizado por
-capacidades de negocio con límites explícitos entre módulos.
+El proyecto es un monolito modular: se compila y despliega como una sola
+aplicación Spring Boot, pero el código se organiza por capacidades de negocio
+con límites comprobados mediante pruebas de arquitectura.
 
-## Estado actual
+## Contenido
 
-- Java 21 y Spring Boot 4.1.
-- MySQL 8.4 como base de datos de producción.
-- JPA/Hibernate con esquema validado, nunca generado en producción.
-- Migraciones versionadas con Flyway.
-- API stateless protegida con Spring Security.
-- Errores HTTP con `application/problem+json`.
-- Subida segura de imágenes PNG, JPEG y GIF.
-- Contenedores sin privilegios y almacenamiento persistente con Docker Compose.
-- Health checks, métricas Prometheus, logs JSON y correlación mediante
-  `X-Request-ID`.
-- Pruebas rápidas con H2 y pruebas de integración con MySQL mediante
-  Testcontainers.
+- [Tecnologías y características](#tecnologías-y-características)
+- [Arquitectura](#arquitectura)
+- [Inicio rápido con Docker](#inicio-rápido-con-docker)
+- [Desarrollo local](#desarrollo-local)
+- [API HTTP](#api-http)
+- [Seguridad](#seguridad)
+- [Base de datos](#base-de-datos)
+- [Almacenamiento de imágenes](#almacenamiento-de-imágenes)
+- [Pruebas](#pruebas)
+- [Observabilidad y operación](#observabilidad-y-operación)
+- [Documentación adicional](#documentación-adicional)
+
+## Tecnologías y características
+
+- Java 21 y Spring Boot 4.1.1.
+- Spring MVC, Bean Validation y contratos HTTP basados en DTOs.
+- Spring Data JPA con Hibernate; las entidades no se exponen en la API.
+- MySQL 8.4.11 en producción y Flyway como propietario del esquema.
+- Spring Security stateless con una identidad administrativa operacional.
+- Errores uniformes mediante RFC Problem Details (`application/problem+json`).
+- Subida segura de imágenes PNG, JPEG y GIF con verificación de firma.
+- Actuator, métricas Prometheus, logs JSON y correlación con `X-Request-ID`.
+- Pruebas rápidas con H2 y pruebas reales de migración con MySQL/Testcontainers.
+- Imagen Docker multi-stage, usuario sin privilegios y filesystem raíz de solo
+  lectura en Docker Compose.
 
 ## Arquitectura
 
 ```text
 com.nitros64.nitros_games_backend
-├── catalog         catálogos compartidos: géneros, plataformas y procesadores
+├── catalog         géneros, dificultades, plataformas y procesadores
 ├── game            juegos, versiones y enlaces de descarga
-├── tooling         lenguajes, herramientas, tipos y compatibilidades
+├── tooling         lenguajes, herramientas y compatibilidades
 ├── storage         metadatos y archivos de imágenes de hosts
 ├── security        autenticación, autorización y CORS
-├── observability   correlación de peticiones
-└── shared          contratos técnicos realmente compartidos
+├── observability   correlación de peticiones y contexto de logging
+└── shared          contratos técnicos compartidos
 ```
 
-Cada módulo funcional utiliza las capas `api`, `application`, `domain` y
-`persistence` cuando las necesita. Los controladores trabajan con DTOs; las
-entidades JPA no forman parte del contrato HTTP.
+Los módulos funcionales siguen esta dirección general:
 
-## Requisitos
+```text
+api  →  application  →  domain
+             ↓
+        persistence
+```
 
-- Docker Desktop o Docker Engine con Compose, opción recomendada.
-- Para ejecutar sin contenedores: JDK 21 y MySQL 8.4.
+- `api` contiene controladores, DTOs y mappers HTTP.
+- `application` implementa casos de uso, transacciones y resolución de
+  dependencias entre módulos.
+- `domain` contiene las entidades y sus operaciones de negocio.
+- `persistence` contiene exclusivamente repositorios Spring Data JPA.
 
-No es necesario instalar Maven: el repositorio incluye Maven Wrapper.
+Los tests de `src/test/java/.../architecture` protegen estos límites, los
+mapeos JPA y la ubicación de los componentes compartidos.
 
 ## Inicio rápido con Docker
 
-1. Crea el archivo local de configuración:
+Este es el camino recomendado: no requiere instalar Java, Maven ni MySQL en el
+host; solo Docker con Compose.
+
+1. Crea la configuración local:
 
    ```powershell
    Copy-Item .env.example .env
@@ -61,126 +83,316 @@ No es necesario instalar Maven: el repositorio incluye Maven Wrapper.
    cp .env.example .env
    ```
 
-2. Sustituye en `.env` todas las contraseñas de ejemplo por valores aleatorios
-   distintos.
+2. Edita `.env` y sustituye `DB_PASSWORD`, `DB_ROOT_PASSWORD` y
+   `APP_SECURITY_ADMIN_PASSWORD` por tres valores aleatorios diferentes. La
+   contraseña administrativa debe tener al menos 16 caracteres.
 
-3. Construye e inicia la API y MySQL:
+3. Valida la configuración e inicia MySQL y la API:
 
    ```shell
+   docker compose config --quiet
    docker compose up -d --build --wait
    docker compose ps
    ```
 
-4. Comprueba la disponibilidad:
+4. Comprueba que la API está lista:
 
    ```shell
    curl --fail http://localhost:8080/actuator/health/readiness
    ```
 
-La API queda disponible en `http://localhost:8080`. MySQL no publica ningún
-puerto al host. Para detener el stack sin borrar datos:
+   En PowerShell también puedes usar:
+
+   ```powershell
+   Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+   ```
+
+La API queda disponible en `http://localhost:8080`. MySQL no publica su puerto
+al host. Los datos se conservan en los volúmenes `mysql-data` y `host-images`.
+
+Para consultar logs o detener los contenedores sin borrar datos:
 
 ```shell
+docker compose logs -f api
 docker compose down
 ```
 
-No ejecutes `docker compose down --volumes` salvo que quieras eliminar de forma
-permanente la base de datos y las imágenes almacenadas.
+`docker compose down --volumes` elimina permanentemente la base de datos y las
+imágenes almacenadas; úsalo solo con datos desechables.
 
 ## Desarrollo local
 
-Con una instancia MySQL accesible, configura el perfil `local`:
+El repositorio incluye Maven Wrapper, por lo que no es necesario instalar
+Maven. Para ejecutar la aplicación fuera de Docker necesitas JDK 21 y una
+instancia MySQL accesible.
+
+Puedes iniciar únicamente una base de datos de desarrollo con Docker:
+
+```shell
+docker run --name nitros-games-mysql-dev --detach --publish 3306:3306 \
+  --env MYSQL_DATABASE=nitrosgames \
+  --env MYSQL_USER=nitros \
+  --env MYSQL_PASSWORD=local-db-password \
+  --env MYSQL_ROOT_PASSWORD=local-root-password \
+  mysql:8.4.11
+```
+
+Configura después el perfil `local` y arranca Spring Boot.
+
+PowerShell:
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
-$env:DB_PASSWORD = "your-local-password"
-$env:APP_SECURITY_ADMIN_PASSWORD = "a-long-random-local-password"
+$env:DB_PASSWORD = "local-db-password"
+$env:APP_SECURITY_ADMIN_PASSWORD = "local-admin-password-123"
 .\mvnw.cmd spring-boot:run
 ```
 
-La lista completa de variables, perfiles y decisiones de seguridad está en
-[docs/configuration.md](docs/configuration.md). La guía de despliegue se
-encuentra en [docs/docker.md](docs/docker.md).
+Bash:
 
-## API
+```shell
+export SPRING_PROFILES_ACTIVE=local
+export DB_PASSWORD=local-db-password
+export APP_SECURITY_ADMIN_PASSWORD=local-admin-password-123
+./mvnw spring-boot:run
+```
 
-Lecturas `GET` y `HEAD` bajo `/api/**` son públicas. Las operaciones `POST`,
-`PUT` y `DELETE` requieren autenticación HTTP Basic con el usuario
-administrador configurado. En producción, las credenciales deben viajar
-exclusivamente sobre HTTPS.
+El perfil local usa por defecto `jdbc:mysql://localhost:3306/nitrosgames`, el
+usuario `nitros`, almacenamiento en `uploadImageFileHost` y origen CORS
+`http://localhost:4200`. Spring Boot no carga archivos `.env` automáticamente;
+Compose sí los utiliza.
 
-Recursos principales:
+La configuración completa se describe en
+[docs/configuration.md](docs/configuration.md).
 
-| Módulo | Recurso base |
+## API HTTP
+
+### Recursos principales
+
+| Recurso | Ruta canónica |
 | --- | --- |
 | Juegos | `/api/v1/games` |
-| Géneros | `/api/v1/gamegenre` |
-| Dificultades | `/api/v1/developmentdifficulty` |
-| Plataformas | `/api/v1/platform` |
-| Procesadores | `/api/v1/processor` |
-| Lenguajes | `/api/v1/programlanguages` |
-| Tipos de herramienta | `/api/v1/programtooltypes` |
-| Herramientas | `/api/v1/programmingtools` |
-| Imágenes de hosts | `/api/v1/serverhostimage` |
+| Géneros | `/api/v1/game-genres` |
+| Dificultades | `/api/v1/development-difficulties` |
+| Plataformas | `/api/v1/platforms` |
+| Procesadores | `/api/v1/processors` |
+| Lenguajes | `/api/v1/programming-languages` |
+| Tipos de herramienta | `/api/v1/programming-tool-types` |
+| Herramientas | `/api/v1/programming-tools` |
+| Imágenes de hosts | `/api/v1/server-host-images` |
 
-Los catálogos y el módulo `tooling` permiten búsquedas paginadas por nombre:
+Las rutas históricas sin plural o sin guiones siguen disponibles temporalmente
+como alias de compatibilidad. Todo cliente nuevo debe usar las rutas canónicas;
+las cabeceras `Location` siempre apuntan a ellas.
+
+### Operaciones comunes
+
+Los catálogos y los recursos de `tooling` soportan:
+
+| Método | Ruta | Resultado |
+| --- | --- | --- |
+| `GET` | `/recurso` | Lista completa |
+| `GET` | `/recurso/paged?page=0&size=20` | Página estable de resultados |
+| `GET` | `/recurso/search?...` | Búsqueda paginada |
+| `GET` | `/recurso/{id}` | Un recurso |
+| `POST` | `/recurso` | Crea uno; devuelve `201` y `Location` |
+| `POST` | `/recurso/batch` | Crea varios |
+| `PUT` | `/recurso/{id}` | Sustituye los datos editables |
+| `DELETE` | `/recurso/{id}` | Elimina y devuelve `204` |
+
+El tamaño de página máximo aceptado es 100. Los filtros de búsqueda de juegos
+y herramientas son opcionales y combinables:
 
 ```text
 GET /api/v1/games/search?name=nitro&developmentDifficultyId=1
     &genreId=1&jam=false&page=0&size=20&sort=name,asc
-GET /api/v1/gamegenre/search?name=strategy&page=0&size=20
-GET /api/v1/developmentdifficulty/search?name=advanced&page=0&size=20
-GET /api/v1/platform/search?name=windows&page=0&size=20
-GET /api/v1/processor/search?name=arm&page=0&size=20
-GET /api/v1/serverhostimage/search?name=dropbox&page=0&size=20
-GET /api/v1/programlanguages/search?name=java&page=0&size=20
-GET /api/v1/programtooltypes/search?name=compiler&page=0&size=20
-GET /api/v1/programmingtools/search?name=gradle&toolTypeId=1
+
+GET /api/v1/programming-tools/search?name=gradle&toolTypeId=1
     &languageId=1&platformId=1&processorId=1&page=0&size=20&sort=name,asc
 ```
 
-Los filtros de juegos y herramientas son opcionales y combinables. El servidor
-limita cualquier página solicitada a 100 elementos.
+### Ejemplo: crear un género
+
+Las mutaciones requieren las credenciales administrativas configuradas:
+
+```shell
+curl --user admin:your-admin-password \
+  --header "Content-Type: application/json" \
+  --data '{"name":"Strategy"}' \
+  http://localhost:8080/api/v1/game-genres
+```
+
+Respuesta:
+
+```http
+HTTP/1.1 201 Created
+Location: http://localhost:8080/api/v1/game-genres/1
+Content-Type: application/json
+
+{"id":1,"name":"Strategy"}
+```
+
+### Juegos y recursos anidados
+
+Las versiones pertenecen a un juego y los enlaces de descarga pertenecen a
+una versión:
+
+```text
+/api/v1/games/{gameId}/versions
+/api/v1/games/{gameId}/versions/{versionId}
+/api/v1/games/{gameId}/versions/{versionId}/download-links
+/api/v1/games/{gameId}/versions/{versionId}/download-links/{linkId}
+```
+
+Las peticiones envían identificadores de recursos relacionados, nunca objetos
+JPA. Por ejemplo, para crear un juego:
+
+```json
+{
+  "name": "Nitro Game",
+  "description": "Great game",
+  "jam": false,
+  "developerCount": 2,
+  "developmentDifficultyId": 1,
+  "genreIds": [1, 2]
+}
+```
+
+### Errores
+
+Todos los errores usan `application/problem+json` y contienen un código estable
+para clientes:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "One or more request fields are invalid",
+  "instance": "/api/v1/game-genres",
+  "code": "validation_failed",
+  "errors": [
+    {
+      "field": "name",
+      "code": "Size",
+      "message": "el tamaño tiene que estar entre 4 y 30"
+    }
+  ]
+}
+```
+
+Los valores rechazados, mensajes de base de datos y trazas nunca se incluyen en
+la respuesta.
+
+## Seguridad
+
+- `GET` y `HEAD` bajo `/api/**` son públicos.
+- `POST`, `PUT` y `DELETE` requieren rol `ADMIN` mediante HTTP Basic.
+- La aplicación es stateless y no crea sesiones de autenticación.
+- CORS usa una allowlist explícita; los comodines están rechazados.
+- Actuator health es público y `/actuator/prometheus` requiere administrador.
+- En producción, HTTP Basic debe usarse exclusivamente detrás de HTTPS.
+
+La identidad administrativa es una cuenta operacional en memoria, no un
+sistema de usuarios finales. Se configura con:
+
+```text
+APP_SECURITY_ADMIN_USERNAME
+APP_SECURITY_ADMIN_PASSWORD
+APP_SECURITY_ALLOWED_ORIGINS
+```
 
 ## Base de datos
 
-Flyway es el único propietario de la evolución del esquema. Hibernate utiliza
-`ddl-auto=validate` fuera de las pruebas rápidas. Las migraciones MySQL están en
-`src/main/resources/db/migration/mysql` y nunca deben editarse después de haber
-sido publicadas; cada cambio de esquema requiere una migración nueva.
+Flyway es el único propietario de la evolución del esquema. Al iniciar:
+
+1. Flyway valida y aplica las migraciones pendientes.
+2. Hibernate valida que las entidades coincidan con el esquema mediante
+   `ddl-auto=validate`.
+3. Hibernate nunca crea ni actualiza tablas en `local` o `prod`.
+
+Las migraciones están en `src/main/resources/db/migration/mysql`. Una migración
+publicada no debe editarse: todo cambio posterior requiere un archivo versionado
+nuevo. Consulta [docs/database-migrations.md](docs/database-migrations.md) antes
+de adoptar una base existente.
+
+## Almacenamiento de imágenes
+
+La creación y modificación de imágenes usa `multipart/form-data`:
+
+| Operación | Ruta canónica | Campos |
+| --- | --- | --- |
+| Crear | `POST /api/v1/server-host-images` | `name`, `fileHostImage` |
+| Reemplazar imagen | `PUT /api/v1/server-host-images/{id}/image` | `name`, `fileHostImage` |
+| Cambiar nombre | `PUT /api/v1/server-host-images/{id}/name` | `name` |
+| Eliminar | `DELETE /api/v1/server-host-images/{id}` | — |
+
+Ejemplo:
+
+```shell
+curl --user admin:your-admin-password \
+  --form "name=MediaFire" \
+  --form "fileHostImage=@mediafire.png;type=image/png" \
+  http://localhost:8080/api/v1/server-host-images
+```
+
+El servidor genera el nombre físico, limita el tamaño, comprueba el MIME y la
+firma binaria, impide salir del directorio configurado y coordina los archivos
+con la transacción de base de datos. Producción requiere un volumen persistente
+en `APP_STORAGE_HOST_IMAGES_DIRECTORY`.
 
 ## Pruebas
 
-Suite rápida con H2:
+Suite rápida y autocontenida con H2:
 
 ```powershell
 .\mvnw.cmd clean verify
 ```
 
-Suite completa, incluyendo MySQL 8.4 mediante Testcontainers:
+En Bash:
+
+```shell
+./mvnw clean verify
+```
+
+Verificación completa con un MySQL 8.4.11 desechable mediante Testcontainers:
 
 ```powershell
 .\mvnw.cmd clean verify -Pmysql-it
 ```
 
-En Bash sustituye `.\mvnw.cmd` por `./mvnw`. Docker debe estar activo para el
-perfil `mysql-it`.
+Docker debe estar activo para `mysql-it`. Esta verificación ejecuta las
+migraciones Flyway y arranca Hibernate contra el esquema MySQL real.
 
-## Operación
+## Observabilidad y operación
 
-- Liveness: `/actuator/health/liveness`
-- Readiness con comprobación de base de datos:
-  `/actuator/health/readiness`
-- Métricas protegidas: `/actuator/prometheus`
-- Correlación: envía opcionalmente `X-Request-ID`; la API lo devuelve y lo
-  incorpora como `requestId` en los logs.
+| Función | Endpoint o comportamiento |
+| --- | --- |
+| Liveness | `/actuator/health/liveness` |
+| Readiness, incluida la BD | `/actuator/health/readiness` |
+| Métricas protegidas | `/actuator/prometheus` |
+| Correlación | Cabecera `X-Request-ID` |
+| Logs de producción | Un objeto JSON Logstash por línea |
 
-Prometheus requiere las credenciales del administrador actual. Los detalles de
-health no se exponen y el endpoint de métricas debe restringirse al sistema de
-monitorización.
+Si el cliente envía un `X-Request-ID` válido, la API lo conserva; de lo
+contrario genera un UUID. La misma identificación aparece en la respuesta y en
+el contexto de logging.
+
+El despliegue Compose incluye health checks, rotación de logs, límites de
+memoria y procesos, shutdown ordenado, usuario no root y volúmenes persistentes.
+Consulta [docs/docker.md](docs/docker.md) para los detalles de producción.
+
+## Documentación adicional
+
+- [Configuración y perfiles](docs/configuration.md)
+- [Docker y despliegue](docs/docker.md)
+- [Migraciones de base de datos](docs/database-migrations.md)
+- [Migración a Spring Boot 4](docs/spring-boot-4-migration.md)
+- [Baseline de compilación](docs/build-baseline.md)
 
 ## Flujo de cambios
 
-Cada cambio se desarrolla en una rama descriptiva, se valida con H2 y MySQL y
-se fusiona únicamente después de revisar sus pruebas. No deben incluirse
-contraseñas, archivos `.env`, imágenes subidas ni datos locales en los commits.
+Los cambios se desarrollan en una rama descriptiva, se validan con H2 y MySQL,
+y se fusionan únicamente después de que las pruebas pasen. No deben incluirse
+contraseñas, archivos `.env`, imágenes subidas, datos locales ni artefactos de
+`target` en los commits.
