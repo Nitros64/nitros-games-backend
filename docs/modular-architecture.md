@@ -93,9 +93,10 @@ insert implementation. Database names remain compatible; migration V2 removes
 the accidental uniqueness constraint that prevented two games from sharing a
 development difficulty.
 
-The HTTP resources are backed by separate application services for games, game
-versions and download links. Each service owns its transactions and depends only
-on the repositories and collaborating modules required by that resource level.
+The HTTP resources are backed by separate API mappers and application services
+for games, game versions and download links. Each service owns its transactions
+and depends only on the repositories and collaborating modules required by that
+resource level.
 
 ## Storage module
 

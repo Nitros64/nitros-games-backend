@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkResponse;
-import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
+import com.nitros64.nitros_games_backend.game.api.mapper.DownloadLinkApiMapper;
 import com.nitros64.nitros_games_backend.game.application.DownloadLinkApplicationService;
 import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 
@@ -29,9 +29,9 @@ import jakarta.validation.constraints.Positive;
 public class DownloadLinkController {
 
     private final DownloadLinkApplicationService service;
-    private final GameApiMapper mapper;
+    private final DownloadLinkApiMapper mapper;
 
-    public DownloadLinkController(DownloadLinkApplicationService service, GameApiMapper mapper) {
+    public DownloadLinkController(DownloadLinkApplicationService service, DownloadLinkApiMapper mapper) {
         this.service = service;
         this.mapper = mapper;
     }

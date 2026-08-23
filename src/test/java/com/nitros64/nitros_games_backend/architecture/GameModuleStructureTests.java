@@ -17,7 +17,9 @@ import com.nitros64.nitros_games_backend.game.api.dto.GameRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameResponse;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionResponse;
+import com.nitros64.nitros_games_backend.game.api.mapper.DownloadLinkApiMapper;
 import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
+import com.nitros64.nitros_games_backend.game.api.mapper.GameVersionApiMapper;
 import com.nitros64.nitros_games_backend.game.application.DownloadLinkApplicationService;
 import com.nitros64.nitros_games_backend.game.application.DownloadLinkDetails;
 import com.nitros64.nitros_games_backend.game.application.GameApplicationService;
@@ -54,6 +56,7 @@ class GameModuleStructureTests {
                 DownloadLinkRepository.class,
                 GameController.class, GameVersionController.class,
                 DownloadLinkController.class, GameApiMapper.class,
+                GameVersionApiMapper.class, DownloadLinkApiMapper.class,
                 GameRequest.class, GameResponse.class,
                 GameVersionRequest.class, GameVersionResponse.class,
                 DownloadLinkRequest.class, DownloadLinkResponse.class);
@@ -91,9 +94,9 @@ class GameModuleStructureTests {
         assertThat(GameController.class.getDeclaredConstructors()[0].getParameterTypes())
                 .containsExactly(GameApplicationService.class, GameApiMapper.class);
         assertThat(GameVersionController.class.getDeclaredConstructors()[0].getParameterTypes())
-                .containsExactly(GameVersionApplicationService.class, GameApiMapper.class);
+                .containsExactly(GameVersionApplicationService.class, GameVersionApiMapper.class);
         assertThat(DownloadLinkController.class.getDeclaredConstructors()[0].getParameterTypes())
-                .containsExactly(DownloadLinkApplicationService.class, GameApiMapper.class);
+                .containsExactly(DownloadLinkApplicationService.class, DownloadLinkApiMapper.class);
     }
 
     private List<String> methodNames(Class<?> type) {

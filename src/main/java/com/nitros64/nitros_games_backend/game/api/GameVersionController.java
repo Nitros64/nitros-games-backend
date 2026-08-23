@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionResponse;
-import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
+import com.nitros64.nitros_games_backend.game.api.mapper.GameVersionApiMapper;
 import com.nitros64.nitros_games_backend.game.application.GameVersionApplicationService;
 import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 
@@ -29,9 +29,9 @@ import jakarta.validation.constraints.Positive;
 public class GameVersionController {
 
     private final GameVersionApplicationService service;
-    private final GameApiMapper mapper;
+    private final GameVersionApiMapper mapper;
 
-    public GameVersionController(GameVersionApplicationService service, GameApiMapper mapper) {
+    public GameVersionController(GameVersionApplicationService service, GameVersionApiMapper mapper) {
         this.service = service;
         this.mapper = mapper;
     }
