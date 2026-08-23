@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nitros64.nitros_games_backend.catalog.application.DevelopDifficultyService;
+import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.game.domain.DownloadLink;
@@ -28,7 +28,7 @@ public class GameApplicationService {
     private final GameDataRepository games;
     private final GameVersionRepository versions;
     private final DownloadLinkRepository downloadLinks;
-    private final DevelopDifficultyService difficulties;
+    private final DevelopmentDifficultyService difficulties;
     private final GameGenreService genres;
     private final ToolCompatibilityService toolCompatibility;
     private final ServerHostImageService hostImages;
@@ -37,7 +37,7 @@ public class GameApplicationService {
             GameDataRepository games,
             GameVersionRepository versions,
             DownloadLinkRepository downloadLinks,
-            DevelopDifficultyService difficulties,
+            DevelopmentDifficultyService difficulties,
             GameGenreService genres,
             ToolCompatibilityService toolCompatibility,
             ServerHostImageService hostImages) {
@@ -160,8 +160,7 @@ public class GameApplicationService {
         game.setJam(command.jam());
         game.setDeveloperCount(command.developerCount());
         game.setDevelopmentDifficulty(difficulties.findById(command.developmentDifficultyId()));
-        var resolvedGenres = new LinkedHashSet<GameGenre>();
-        command.genreIds().forEach(id -> resolvedGenres.add(genres.findById(id)));
+        var resolvedGenres = new LinkedHashSet<GameGenre>(genres.findAllById(command.genreIds()));
         game.replaceGenres(resolvedGenres);
         return game;
     }

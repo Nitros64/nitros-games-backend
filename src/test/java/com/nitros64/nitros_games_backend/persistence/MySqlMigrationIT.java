@@ -10,11 +10,19 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;
 
-import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
+import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
+import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
+import com.nitros64.nitros_games_backend.catalog.domain.Platform;
+import com.nitros64.nitros_games_backend.catalog.domain.Processor;
+import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 
 @Testcontainers
@@ -26,6 +34,7 @@ import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepo
         "app.security.admin-password=test-admin-password",
         "app.security.allowed-origins=http://localhost:4200"
 })
+@Transactional
 class MySqlMigrationIT {
 
     @Container
@@ -42,7 +51,16 @@ class MySqlMigrationIT {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private GenreRepository genreRepository;
+    private GameGenreRepository genreRepository;
+
+    @Autowired
+    private DevelopmentDifficultyRepository difficultyRepository;
+
+    @Autowired
+    private PlatformRepository platformRepository;
+
+    @Autowired
+    private ProcessorRepository processorRepository;
 
     @Autowired
     private ProgrammingToolRepository programmingToolRepository;
@@ -124,6 +142,33 @@ class MySqlMigrationIT {
             assertThat(tool.getName()).isEqualTo("Gradle");
             assertThat(tool.getToolType().getName()).isEqualTo("Build");
         });
+    }
+
+    @Test
+    void catalogNameSearchesRunAgainstMySqlCaseInsensitively() {
+        genreRepository.saveAndFlush(new GameGenre("Strategy"));
+        difficultyRepository.saveAndFlush(new DevelopmentDifficulty("Advanced"));
+        platformRepository.saveAndFlush(new Platform("Windows"));
+        processorRepository.saveAndFlush(new Processor("ARM64"));
+
+        var page = PageRequest.of(0, 10, Sort.by("name"));
+
+        assertThat(genreRepository.findByNameContainingIgnoreCase("RATEG", page).getContent())
+                .singleElement()
+                .extracting(GameGenre::getName)
+                .isEqualTo("Strategy");
+        assertThat(difficultyRepository.findByNameContainingIgnoreCase("DVANC", page).getContent())
+                .singleElement()
+                .extracting(DevelopmentDifficulty::getName)
+                .isEqualTo("Advanced");
+        assertThat(platformRepository.findByNameContainingIgnoreCase("INDOW", page).getContent())
+                .singleElement()
+                .extracting(Platform::getName)
+                .isEqualTo("Windows");
+        assertThat(processorRepository.findByNameContainingIgnoreCase("rm6", page).getContent())
+                .singleElement()
+                .extracting(Processor::getName)
+                .isEqualTo("ARM64");
     }
 
     private Long id(String table, String name) {

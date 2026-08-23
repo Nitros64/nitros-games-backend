@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.nitros64.nitros_games_backend.catalog.application.DevelopDifficultyService;
+import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.application.PlatformService;
 import com.nitros64.nitros_games_backend.catalog.application.ProcessorService;
@@ -15,8 +15,8 @@ import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevDifficultyRepository;
-import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.catalog.api.DevelopmentDifficultyController;
@@ -45,9 +45,9 @@ class CatalogModuleStructureTests {
     void catalogComponentsStayInsideTheirVerticalModule() {
         List<Class<?>> catalogTypes = List.of(
                 DevelopmentDifficulty.class, GameGenre.class, Platform.class, Processor.class,
-                DevDifficultyRepository.class, GenreRepository.class,
+                DevelopmentDifficultyRepository.class, GameGenreRepository.class,
                 PlatformRepository.class, ProcessorRepository.class,
-                DevelopDifficultyService.class, GameGenreService.class,
+                DevelopmentDifficultyService.class, GameGenreService.class,
                 PlatformService.class, ProcessorService.class,
                 DevelopmentDifficultyController.class, GameGenreController.class,
                 PlatformController.class, ProcessorController.class,
@@ -74,5 +74,15 @@ class CatalogModuleStructureTests {
                 .map(method -> method.toGenericString())
                 .forEach(signature -> assertThat(signature)
                         .doesNotContain(CATALOG_PACKAGE + ".domain."));
+    }
+
+    @Test
+    void catalogServicesUseExplicitPersistenceContracts() {
+        Stream.of(
+                DevelopmentDifficultyService.class,
+                GameGenreService.class,
+                PlatformService.class,
+                ProcessorService.class)
+                .forEach(service -> assertThat(service.getSuperclass()).isEqualTo(Object.class));
     }
 }

@@ -123,9 +123,13 @@ Recursos principales:
 | Herramientas | `/api/v1/programmingtools` |
 | Imágenes de hosts | `/api/v1/serverhostimage` |
 
-El módulo `tooling` permite búsquedas paginadas:
+Los catálogos y el módulo `tooling` permiten búsquedas paginadas por nombre:
 
 ```text
+GET /api/v1/gamegenre/search?name=strategy&page=0&size=20
+GET /api/v1/developmentdifficulty/search?name=advanced&page=0&size=20
+GET /api/v1/platform/search?name=windows&page=0&size=20
+GET /api/v1/processor/search?name=arm&page=0&size=20
 GET /api/v1/programlanguages/search?name=java&page=0&size=20
 GET /api/v1/programtooltypes/search?name=compiler&page=0&size=20
 GET /api/v1/programmingtools/search?name=gradle&toolTypeId=1

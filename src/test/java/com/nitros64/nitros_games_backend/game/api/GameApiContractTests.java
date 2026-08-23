@@ -26,8 +26,8 @@ import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevDifficultyRepository;
-import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.game.persistence.DownloadLinkRepository;
@@ -58,8 +58,8 @@ class GameApiContractTests {
 
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
-    @Autowired DevDifficultyRepository difficultyRepository;
-    @Autowired GenreRepository genreRepository;
+    @Autowired DevelopmentDifficultyRepository difficultyRepository;
+    @Autowired GameGenreRepository genreRepository;
     @Autowired PlatformRepository platformRepository;
     @Autowired ProcessorRepository processorRepository;
     @Autowired ProgrammingLanguageRepository languageRepository;

@@ -24,8 +24,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevDifficultyRepository;
-import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
+import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 
@@ -41,7 +41,7 @@ class CatalogApiContractTests {
     private MockMvc mockMvc;
 
     @Autowired
-    private GenreRepository genreRepository;
+    private GameGenreRepository genreRepository;
 
     @Autowired
     private PlatformRepository platformRepository;
@@ -50,7 +50,7 @@ class CatalogApiContractTests {
     private ProcessorRepository processorRepository;
 
     @Autowired
-    private DevDifficultyRepository difficultyRepository;
+    private DevelopmentDifficultyRepository difficultyRepository;
 
     @BeforeEach
     @AfterEach
@@ -124,6 +124,16 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.pageable.pageNumber").value(0))
                 .andExpect(jsonPath("$.sort.sorted").value(false));
 
+        mockMvc.perform(get(basePath + "/search")
+                    .param("name", updatedName.substring(1).toUpperCase())
+                    .param("size", "500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(id.longValue()))
+                .andExpect(jsonPath("$.content[0].name").value(updatedName))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.size").value(100));
+
         mockMvc.perform(delete(basePath + "/" + id.longValue())
                     .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
                 .andExpect(status().isNoContent())
@@ -148,6 +158,16 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.errors[0].field").value("name"));
     }
 
+    @ParameterizedTest(name = "{0} validates search criteria")
+    @MethodSource("catalogSearchResources")
+    void searchValidatesItsNameParameter(String resource) throws Exception {
+        mockMvc.perform(get("/api/v1/" + resource + "/search").param("name", " "))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.errors[0].field").value("name"));
+    }
+
     private static Stream<Arguments> catalogResources() {
         return Stream.of(
                 Arguments.of("gamegenre", "Adventure", "Strategy", "Puzzle", "Simulation"),
@@ -162,6 +182,14 @@ class CatalogApiContractTests {
                 Arguments.of("platform", "Platform2"),
                 Arguments.of("processor", "ProcessorNameTooLong"),
                 Arguments.of("developmentdifficulty", "Level2"));
+    }
+
+    private static Stream<Arguments> catalogSearchResources() {
+        return Stream.of(
+                Arguments.of("gamegenre"),
+                Arguments.of("platform"),
+                Arguments.of("processor"),
+                Arguments.of("developmentdifficulty"));
     }
 
     private String json(String name) {
