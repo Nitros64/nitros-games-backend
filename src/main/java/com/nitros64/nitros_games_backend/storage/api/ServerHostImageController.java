@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
@@ -25,8 +27,11 @@ import com.nitros64.nitros_games_backend.storage.api.mapper.ServerHostImageApiMa
 import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @RestController
+@Validated
 @RequestMapping("api/v1/serverhostimage")
 public class ServerHostImageController {
 
@@ -48,6 +53,15 @@ public class ServerHostImageController {
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<ServerHostImageResponse>> getAll(Pageable pageable) {
         return ResponseEntity.ok(PageResponse.from(service.findAll(pageable), mapper::toResponse));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PageResponse<ServerHostImageResponse>> search(
+            @RequestParam @NotBlank @Size(max = 30) String name,
+            Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(
+                service.searchByName(name, pageable),
+                mapper::toResponse));
     }
 
     @GetMapping("/{id}")

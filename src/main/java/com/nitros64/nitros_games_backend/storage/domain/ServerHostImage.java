@@ -17,33 +17,13 @@ import lombok.Setter;
 @AllArgsConstructor
 @Setter
 @Getter
-public class ServerHostImage extends Base{
+public class ServerHostImage extends Base {
     private static final long serialVersionUID = 1L;
 
     @Column(nullable = false, unique = true)
-    private String name;   //MEGA POR EJEMPLO
+    private String name;
 
     @Column(nullable = false, unique = true)
     private String imagepath;
 
-    public ServerHostImage(String name){
-        this.name = name;
-    }
 }
-
-/*
-    CONTROLLER READY
-    SERVICE READY
-    REPOSITORY READY
- */
-
-/*
-ImagePath es la imagen del servidor usado para el link asociado
-    ****Todo link debe tener un host privado donde se almacena el ejecutable del juego,
-    
-    ****Los server privados como MEGA, MediaFire o Dropbox tienen su propio logotipo 
-        este logotipo se usa para diferenciar y seleccionar entre los diferentes Links de descarga
-
-    ****Cada Juego tiene diferentes version y cada version tiene diferentes opciones para descargar,
-        cada opcion es un servidor privado diferente, como los mensinados anteriormente
-*/

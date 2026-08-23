@@ -1,13 +1,12 @@
 package com.nitros64.nitros_games_backend.storage.persistence;
 
-import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
-import java.util.Optional;
+public interface ServerHostImageRepository extends BaseRepository<ServerHostImage, Long> {
 
-@Repository
-public interface ServerHostImageRepository extends BaseRepository<ServerHostImage, Long>{
-    Optional<ServerHostImage> findByName(String name);
+    Page<ServerHostImage> findByNameContainingIgnoreCase(String name, Pageable pageable);
 }

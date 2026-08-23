@@ -24,6 +24,8 @@ import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
+import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
+import com.nitros64.nitros_games_backend.storage.persistence.ServerHostImageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 
 @Testcontainers
@@ -65,6 +67,9 @@ class MySqlMigrationIT {
 
     @Autowired
     private GameDataRepository gameDataRepository;
+
+    @Autowired
+    private ServerHostImageRepository serverHostImageRepository;
 
     @Autowired
     private ProgrammingToolRepository programmingToolRepository;
@@ -207,6 +212,21 @@ class MySqlMigrationIT {
             assertThat(game.getGenres()).singleElement()
                     .extracting(GameGenre::getName)
                     .isEqualTo("Strategy");
+        });
+    }
+
+    @Test
+    void hostImageNameSearchRunsAgainstMySqlCaseInsensitively() {
+        serverHostImageRepository.saveAndFlush(
+                new ServerHostImage("Dropbox", "dropbox.png"));
+
+        var result = serverHostImageRepository.findByNameContainingIgnoreCase(
+                "ROP",
+                PageRequest.of(0, 10, Sort.by("name")));
+
+        assertThat(result.getContent()).singleElement().satisfies(image -> {
+            assertThat(image.getName()).isEqualTo("Dropbox");
+            assertThat(image.getImagepath()).isEqualTo("dropbox.png");
         });
     }
 

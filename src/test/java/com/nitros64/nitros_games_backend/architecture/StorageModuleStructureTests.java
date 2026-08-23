@@ -58,4 +58,9 @@ class StorageModuleStructureTests {
         assertThat(DownloadLink.class.getDeclaredField("serverImage").getType())
                 .isEqualTo(ServerHostImage.class);
     }
+
+    @Test
+    void storageServiceUsesAnExplicitPersistenceContract() {
+        assertThat(ServerHostImageService.class.getSuperclass()).isEqualTo(Object.class);
+    }
 }
