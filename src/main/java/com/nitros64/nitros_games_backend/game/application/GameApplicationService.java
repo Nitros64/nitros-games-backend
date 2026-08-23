@@ -14,42 +14,24 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
-import com.nitros64.nitros_games_backend.game.domain.DownloadLink;
 import com.nitros64.nitros_games_backend.game.domain.GameData;
-import com.nitros64.nitros_games_backend.game.domain.GameVersion;
-import com.nitros64.nitros_games_backend.game.persistence.DownloadLinkRepository;
 import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
-import com.nitros64.nitros_games_backend.game.persistence.GameVersionRepository;
 import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
-import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
-import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibilityService;
 
 @Service
 public class GameApplicationService {
 
     private final GameDataRepository games;
-    private final GameVersionRepository versions;
-    private final DownloadLinkRepository downloadLinks;
     private final DevelopmentDifficultyService difficulties;
     private final GameGenreService genres;
-    private final ToolCompatibilityService toolCompatibility;
-    private final ServerHostImageService hostImages;
 
     public GameApplicationService(
             GameDataRepository games,
-            GameVersionRepository versions,
-            DownloadLinkRepository downloadLinks,
             DevelopmentDifficultyService difficulties,
-            GameGenreService genres,
-            ToolCompatibilityService toolCompatibility,
-            ServerHostImageService hostImages) {
+            GameGenreService genres) {
         this.games = games;
-        this.versions = versions;
-        this.downloadLinks = downloadLinks;
         this.difficulties = difficulties;
         this.genres = genres;
-        this.toolCompatibility = toolCompatibility;
-        this.hostImages = hostImages;
     }
 
     @Transactional(readOnly = true)
@@ -94,79 +76,6 @@ public class GameApplicationService {
         games.flush();
     }
 
-    @Transactional(readOnly = true)
-    public List<GameVersionDetails> findVersions(Long gameId) {
-        requireGame(gameId);
-        return versions.findAllByGameIdOrderById(gameId).stream()
-                .map(this::toDetails)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public GameVersionDetails findVersion(Long gameId, Long versionId) {
-        return toDetails(requireVersion(gameId, versionId));
-    }
-
-    @Transactional
-    public GameVersionDetails createVersion(Long gameId, SaveGameVersionCommand command) {
-        var version = new GameVersion();
-        version.attachToGame(requireGame(gameId));
-        return toDetails(versions.saveAndFlush(apply(version, command)));
-    }
-
-    @Transactional
-    public GameVersionDetails updateVersion(
-            Long gameId,
-            Long versionId,
-            SaveGameVersionCommand command) {
-        return toDetails(versions.saveAndFlush(apply(requireVersion(gameId, versionId), command)));
-    }
-
-    @Transactional
-    public void deleteVersion(Long gameId, Long versionId) {
-        versions.delete(requireVersion(gameId, versionId));
-        versions.flush();
-    }
-
-    @Transactional(readOnly = true)
-    public List<DownloadLinkDetails> findDownloadLinks(Long gameId, Long versionId) {
-        requireVersion(gameId, versionId);
-        return downloadLinks.findAllByGameVersionIdOrderById(versionId).stream()
-                .map(this::toDetails)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public DownloadLinkDetails findDownloadLink(Long gameId, Long versionId, Long linkId) {
-        return toDetails(requireDownloadLink(gameId, versionId, linkId));
-    }
-
-    @Transactional
-    public DownloadLinkDetails createDownloadLink(
-            Long gameId,
-            Long versionId,
-            SaveDownloadLinkCommand command) {
-        var link = new DownloadLink();
-        link.attachToVersion(requireVersion(gameId, versionId));
-        return toDetails(downloadLinks.saveAndFlush(apply(link, command)));
-    }
-
-    @Transactional
-    public DownloadLinkDetails updateDownloadLink(
-            Long gameId,
-            Long versionId,
-            Long linkId,
-            SaveDownloadLinkCommand command) {
-        var link = requireDownloadLink(gameId, versionId, linkId);
-        return toDetails(downloadLinks.saveAndFlush(apply(link, command)));
-    }
-
-    @Transactional
-    public void deleteDownloadLink(Long gameId, Long versionId, Long linkId) {
-        downloadLinks.delete(requireDownloadLink(gameId, versionId, linkId));
-        downloadLinks.flush();
-    }
-
     private GameData apply(GameData game, SaveGameCommand command) {
         var resolvedGenres = new LinkedHashSet<GameGenre>(genres.findAllById(command.genreIds()));
         game.updateDetails(
@@ -179,40 +88,9 @@ public class GameApplicationService {
         return game;
     }
 
-    private GameVersion apply(GameVersion version, SaveGameVersionCommand command) {
-        var compatibility = toolCompatibility.resolve(
-                command.programmingLanguageId(),
-                command.programmingToolId(),
-                command.platformId(),
-                command.processorId());
-        version.updateCompatibility(
-                command.name(),
-                compatibility.languageTool(),
-                compatibility.toolPlatform(),
-                compatibility.toolProcessor(),
-                command.platformId(),
-                command.processorId());
-        return version;
-    }
-
-    private DownloadLink apply(DownloadLink link, SaveDownloadLinkCommand command) {
-        link.updateDetails(command.link(), hostImages.findById(command.serverHostImageId()));
-        return link;
-    }
-
     private GameData requireGame(Long gameId) {
         return games.findById(gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Game not found"));
-    }
-
-    private GameVersion requireVersion(Long gameId, Long versionId) {
-        return versions.findByIdAndGameId(versionId, gameId)
-                .orElseThrow(() -> new ResourceNotFoundException("Game version not found"));
-    }
-
-    private DownloadLink requireDownloadLink(Long gameId, Long versionId, Long linkId) {
-        return downloadLinks.findDetailedByIdAndHierarchy(linkId, versionId, gameId)
-                .orElseThrow(() -> new ResourceNotFoundException("Download link not found"));
     }
 
     private Page<GameDetails> hydrate(Page<Long> gameIds, Pageable pageable) {
@@ -239,24 +117,5 @@ public class GameApplicationService {
                 game.getGenres().stream()
                         .map(GameGenre::getId)
                         .collect(Collectors.toCollection(LinkedHashSet::new)));
-    }
-
-    private GameVersionDetails toDetails(GameVersion version) {
-        return new GameVersionDetails(
-                version.getId(),
-                version.getGame().getId(),
-                version.getName(),
-                version.getLanguageTool().getProgrammingLanguage().getId(),
-                version.getLanguageTool().getProgrammingTool().getId(),
-                version.getPlatformId(),
-                version.getProcessorId());
-    }
-
-    private DownloadLinkDetails toDetails(DownloadLink link) {
-        return new DownloadLinkDetails(
-                link.getId(),
-                link.getGameVersion().getId(),
-                link.getLink(),
-                link.getServerImage().getId());
     }
 }
