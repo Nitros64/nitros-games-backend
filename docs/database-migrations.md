@@ -31,7 +31,8 @@ Fast tests remain self-contained with H2:
 
 The MySQL integration profile requires Docker. It creates a disposable MySQL
 8.4.11 database, executes Flyway, validates all Hibernate mappings and runs a
-repository query:
+set of repository queries, including detailed, lightweight and hierarchical
+game-resource loading:
 
 ```powershell
 .\mvnw.cmd clean verify -Pmysql-it

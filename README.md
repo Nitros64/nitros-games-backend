@@ -362,7 +362,10 @@ Verificación completa con un MySQL 8.4.11 desechable mediante Testcontainers:
 ```
 
 Docker debe estar activo para `mysql-it`. Esta verificación ejecuta las
-migraciones Flyway y arranca Hibernate contra el esquema MySQL real.
+migraciones Flyway, arranca Hibernate contra el esquema MySQL real y comprueba
+consultas de repositorio, incluidas las cargas detalladas y jerárquicas de
+`game`. La suite H2 también controla el número de sentencias de estas consultas
+para detectar regresiones N+1.
 
 ## Observabilidad y operación
 
