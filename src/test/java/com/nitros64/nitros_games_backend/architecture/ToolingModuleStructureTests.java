@@ -26,6 +26,8 @@ import com.nitros64.nitros_games_backend.tooling.application.ProgramToolServiceI
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeServiceImpl;
 import com.nitros64.nitros_games_backend.tooling.application.SaveProgrammingToolCommand;
+import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibility;
+import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibilityService;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageToolId;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
@@ -66,7 +68,8 @@ class ToolingModuleStructureTests {
                 ProgramToolTypeRequest.class, ProgramToolTypeResponse.class,
                 ProgrammingToolRequest.class, ProgrammingToolResponse.class,
                 ProgrammingLanguageApiMapper.class, ProgramToolTypeApiMapper.class,
-                ProgrammingToolApiMapper.class, SaveProgrammingToolCommand.class);
+                ProgrammingToolApiMapper.class, SaveProgrammingToolCommand.class,
+                ToolCompatibility.class, ToolCompatibilityService.class);
 
         assertThat(toolingTypes)
                 .allSatisfy(type -> assertThat(type.getPackageName())

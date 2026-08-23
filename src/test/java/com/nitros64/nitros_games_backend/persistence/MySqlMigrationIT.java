@@ -43,7 +43,7 @@ class MySqlMigrationIT {
 
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("1");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("2");
 
         Integer applicationTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -54,5 +54,23 @@ class MySqlMigrationIT {
 
         assertThat(applicationTableCount).isEqualTo(15);
         assertThat(genreRepository.findAll()).isEmpty();
+
+        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
+        Long difficultyId = jdbcTemplate.queryForObject(
+                "select id from dev_difficulty where name = ?", Long.class, "Medium");
+        jdbcTemplate.update("""
+                insert into gamedata
+                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
+                values (?, ?, ?, ?, ?)
+                """, "First game", 2, false, "First game", difficultyId);
+        jdbcTemplate.update("""
+                insert into gamedata
+                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
+                values (?, ?, ?, ?, ?)
+                """, "Second game", 3, false, "Second game", difficultyId);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from gamedata where dev_difficulty_id = ?",
+                Integer.class,
+                difficultyId)).isEqualTo(2);
     }
 }

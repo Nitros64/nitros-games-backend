@@ -12,11 +12,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,66 +30,42 @@ import org.hibernate.annotations.OnDeleteAction;
 @Getter
 public class GameData extends Base {
     
-    private static final long serialVersionUID = 1L; 
-    
-    @NotEmpty(message = "no puede estar vacio")
-    @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-    @Column(nullable = false, unique = false)
+    private static final long serialVersionUID = 1L;
+
+    @Column(nullable = false)
     private String name;
     
-    @NotEmpty(message = "no puede estar vacio")
-    @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-    @Column(nullable = false)
-    private String descripcion;
-    
+    @Column(name = "descripcion", nullable = false)
+    private String description;
+
     @Column(nullable = false)
     private boolean jam;
-    
-    @Column(nullable = false)
-    private int devNumbers;//cantidad de desarrolladores en el proyecto
 
-    //LISTA COMPLETA SOBRE LAS DIFERENTES VERSIONES DEL VIDEOJUEGOS
-    @OneToMany(mappedBy = "gamedata", fetch = FetchType.LAZY)
+    @Column(name = "dev_numbers", nullable = false)
+    private int developerCount;
+
+    @OneToMany(mappedBy = "game", fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private Set<GameVersion> versionList = new HashSet<>();
+    private Set<GameVersion> versions = new HashSet<>();
 
-
-    //LISTA COMPLETA SOBRE LOS DIFERENTES GENEROS A LOS QUE PERTENECE DEL VIDEOJUEGOS
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "mygames_genres", 
-        joinColumns = @JoinColumn(name = "mygame_id", insertable = false, updatable = false), 
-        inverseJoinColumns = @JoinColumn(name = "genre_id", insertable = false, updatable = false))
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    private Set<GameGenre> mygameGenres = new HashSet<>();
+    @JoinTable(
+            name = "mygames_genres",
+            joinColumns = @JoinColumn(name = "mygame_id"),
+            inverseJoinColumns = @JoinColumn(name = "genre_id"))
+    private Set<GameGenre> genres = new HashSet<>();
     
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "dev_difficulty_id", nullable = false)
-    private DevelopmentDifficulty devDificulty;
+    private DevelopmentDifficulty developmentDifficulty;
 
-//    public GameData() {
-//    }
-//
-    public GameData(String nombre, String descripcion, boolean jam, int devNumber) {
-        this.name = nombre;
-        this.descripcion = descripcion;
-        this.jam = jam;
-        this.devNumbers = devNumber;
-    }   
-
-    public GameData(String nombre, String descripcion, boolean jam, int devNumber, DevelopmentDifficulty devDificulty) {
-        this.name = nombre;
-        this.descripcion = descripcion;
-        this.jam = jam;
-        this.devNumbers = devNumber;
-        this.devDificulty = devDificulty;
-    }    
-    
     public void addVersion(GameVersion version) {
-        this.versionList.add(version);
-        version.setGamedata(this);
+        this.versions.add(version);
+        version.setGame(this);
     }
-    
-    public void addGenre(GameGenre gamegenre){
-        mygameGenres.add(gamegenre);
+
+    public void replaceGenres(Set<GameGenre> genres) {
+        this.genres.clear();
+        this.genres.addAll(genres);
     }
 }
