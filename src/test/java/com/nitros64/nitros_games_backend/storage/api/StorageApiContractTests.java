@@ -118,6 +118,14 @@ class StorageApiContractTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/v1/serverhostimage/search")
+                        .param("name", "ROP")
+                        .param("size", "500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(id.longValue()))
+                .andExpect(jsonPath("$.content[0].name").value("Dropbox"))
+                .andExpect(jsonPath("$.size").value(100));
 
         mockMvc.perform(delete("/api/v1/serverhostimage/" + id.longValue()).with(admin()))
                 .andExpect(status().isNoContent())
@@ -230,6 +238,15 @@ class StorageApiContractTests {
                     .content("{\"name\":\"MediaFire\",\"imagepath\":\"client.png\"}"))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.code").value("method_not_allowed"));
+    }
+
+    @Test
+    void searchValidatesItsNameParameter() throws Exception {
+        mockMvc.perform(get("/api/v1/serverhostimage/search").param("name", " "))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.errors[0].field").value("name"));
     }
 
     private MockMultipartFile validPng(String originalFilename) {
