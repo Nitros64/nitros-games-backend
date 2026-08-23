@@ -56,6 +56,16 @@ Production validates the existing schema and never creates or updates it.
 Optional pool settings are `DB_POOL_MIN_IDLE`, `DB_POOL_MAX_SIZE`,
 `DB_CONNECTION_TIMEOUT_MS` and `DB_VALIDATION_TIMEOUT_MS`.
 
+The container image and single-host Compose deployment are documented in
+`docs/docker.md`.
+
+## Health probes
+
+Only the Actuator health endpoint is exposed. `/actuator/health/liveness`
+reports whether the application process should be restarted, while
+`/actuator/health/readiness` also checks the database and reports whether the
+instance should receive traffic. Component details are never returned.
+
 ## Host-image storage
 
 Production requires `APP_STORAGE_HOST_IMAGES_DIRECTORY` to point to a writable,

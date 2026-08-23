@@ -58,6 +58,10 @@ class ConfigurationSecurityTests {
         assertEquals(
                 "false",
                 properties.getProperty("spring.jpa.properties.hibernate.enable_lazy_load_no_trans"));
+        assertEquals("graceful", properties.getProperty("server.shutdown"));
+        assertEquals(
+                "25s",
+                properties.getProperty("spring.lifecycle.timeout-per-shutdown-phase"));
     }
 
     private Properties loadProperties(String resourceName) throws IOException {

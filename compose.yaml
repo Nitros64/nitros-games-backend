@@ -1,0 +1,88 @@
+name: nitros-games
+
+services:
+  mysql:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: nitrosgames
+      MYSQL_USER: ${DB_USERNAME:-nitros}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD=$${MYSQL_PASSWORD} mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${MYSQL_MEMORY_LIMIT:-1g}
+    pids_limit: 300
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  api:
+    image: nitros-games-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/nitrosgames?sslMode=DISABLED&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-nitros}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      APP_STORAGE_HOST_IMAGES_DIRECTORY: /var/lib/nitros-games/host-images
+      APP_STORAGE_MAX_FILE_SIZE: ${APP_STORAGE_MAX_FILE_SIZE:-10MB}
+      APP_STORAGE_MAX_REQUEST_SIZE: ${APP_STORAGE_MAX_REQUEST_SIZE:-11MB}
+      APP_SECURITY_ADMIN_USERNAME: ${APP_SECURITY_ADMIN_USERNAME:-admin}
+      APP_SECURITY_ADMIN_PASSWORD: ${APP_SECURITY_ADMIN_PASSWORD:?Set APP_SECURITY_ADMIN_PASSWORD}
+      APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS:-http://localhost:4200}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-2}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-10}
+    ports:
+      - ${APP_PORT:-8080}:8080
+    volumes:
+      - host-images:/var/lib/nitros-games/host-images
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${APP_MEMORY_LIMIT:-768m}
+    pids_limit: 200
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1:8080/actuator/health/readiness
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  mysql-data:
+  host-images:

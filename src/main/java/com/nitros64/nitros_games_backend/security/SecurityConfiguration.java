@@ -38,6 +38,10 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**")
+                                .permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/actuator/health", "/actuator/health/**")
+                                .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/**").permitAll()

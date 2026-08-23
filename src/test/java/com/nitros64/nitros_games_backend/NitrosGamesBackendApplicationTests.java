@@ -41,6 +41,14 @@ class NitrosGamesBackendApplicationTests {
 	}
 
 	@Test
+	void readinessHealthIsPublicAndDoesNotExposeDetails() throws Exception {
+		mockMvc.perform(get("/actuator/health/readiness"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("UP"))
+				.andExpect(jsonPath("$.components").doesNotExist());
+	}
+
+	@Test
 	void emptyGenreCatalogCanBeRead() throws Exception {
 		mockMvc.perform(get("/api/v1/gamegenre"))
 				.andExpect(status().isOk())
