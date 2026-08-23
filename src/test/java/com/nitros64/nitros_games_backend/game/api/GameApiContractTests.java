@@ -266,6 +266,37 @@ class GameApiContractTests {
     }
 
     @Test
+    void emptyNestedCollectionsDistinguishExistingParentsFromWrongHierarchy() throws Exception {
+        createGame("First Game").andExpect(status().isCreated());
+        createGame("Second Game").andExpect(status().isCreated());
+        var games = gameRepository.findAll();
+        var first = games.get(0);
+        var second = games.get(1);
+
+        mvc.perform(get("/api/v1/games/{gameId}/versions", first.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/v1/games/{gameId}/versions", second.getId() + 999))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("resource_not_found"));
+
+        mvc.perform(post("/api/v1/games/{gameId}/versions", first.getId())
+                        .with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(versionJson("Version One", platform.getId())))
+                .andExpect(status().isCreated());
+        var version = versionRepository.findAll().getFirst();
+
+        mvc.perform(get("/api/v1/games/{gameId}/versions/{versionId}/download-links",
+                        first.getId(), version.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/v1/games/{gameId}/versions/{versionId}/download-links",
+                        second.getId(), version.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("resource_not_found"));
+    }
+
+    @Test
     void duplicateDownloadLinkReturnsConflictWithoutCreatingAnotherRow() throws Exception {
         createGame("Nitro Game").andExpect(status().isCreated());
         var game = gameRepository.findAll().getFirst();

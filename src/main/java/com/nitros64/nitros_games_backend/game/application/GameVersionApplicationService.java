@@ -30,8 +30,11 @@ public class GameVersionApplicationService {
 
     @Transactional(readOnly = true)
     public List<GameVersionDetails> findVersions(Long gameId) {
-        requireGame(gameId);
-        return versions.findAllByGameIdOrderById(gameId).stream()
+        var foundVersions = versions.findAllDetailedByGameIdOrderById(gameId);
+        if (foundVersions.isEmpty() && !games.existsById(gameId)) {
+            throw new ResourceNotFoundException("Game not found");
+        }
+        return foundVersions.stream()
                 .map(this::toDetails)
                 .toList();
     }
@@ -84,7 +87,7 @@ public class GameVersionApplicationService {
     }
 
     private GameVersion requireVersion(Long gameId, Long versionId) {
-        return versions.findByIdAndGameId(versionId, gameId)
+        return versions.findDetailedByIdAndGameId(versionId, gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Game version not found"));
     }
 

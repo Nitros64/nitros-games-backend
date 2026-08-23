@@ -30,8 +30,11 @@ public class DownloadLinkApplicationService {
 
     @Transactional(readOnly = true)
     public List<DownloadLinkDetails> findDownloadLinks(Long gameId, Long versionId) {
-        requireVersion(gameId, versionId);
-        return downloadLinks.findAllByGameVersionIdOrderById(versionId).stream()
+        var foundLinks = downloadLinks.findAllDetailedByHierarchy(versionId, gameId);
+        if (foundLinks.isEmpty() && !versions.existsByIdAndGameId(versionId, gameId)) {
+            throw new ResourceNotFoundException("Game version not found");
+        }
+        return foundLinks.stream()
                 .map(this::toDetails)
                 .toList();
     }
@@ -73,7 +76,7 @@ public class DownloadLinkApplicationService {
     }
 
     private GameVersion requireVersion(Long gameId, Long versionId) {
-        return versions.findByIdAndGameId(versionId, gameId)
+        return versions.findOwnedByIdAndGameId(versionId, gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Game version not found"));
     }
 

@@ -98,6 +98,11 @@ for games, game versions and download links. Each service owns its transactions
 and depends only on the repositories and collaborating modules required by that
 resource level.
 
+Persistence queries distinguish detailed response loading from lightweight
+ownership checks. Nested collection reads include the full resource hierarchy
+in the query and only issue a separate existence check when an empty result must
+be distinguished from a missing parent.
+
 ## Storage module
 
 `storage` owns host-image metadata and the files that back it. Its `api` layer
