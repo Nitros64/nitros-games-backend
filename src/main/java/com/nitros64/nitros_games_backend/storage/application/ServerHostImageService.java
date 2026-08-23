@@ -60,8 +60,7 @@ public class ServerHostImageService {
         String newFilename = fileHandler.store(file);
         fileHandler.deleteOnRollback(newFilename);
 
-        entity.setName(name);
-        entity.setImagepath(newFilename);
+        entity.replace(name, newFilename);
         ServerHostImage updated = images.saveAndFlush(entity);
         fileHandler.deleteAfterCommit(oldFilename);
         return updated;
@@ -70,7 +69,7 @@ public class ServerHostImageService {
     @Transactional
     public ServerHostImage updateName(Long id, String name) {
         ServerHostImage entity = findById(id);
-        entity.setName(name);
+        entity.rename(name);
         return images.saveAndFlush(entity);
     }
 

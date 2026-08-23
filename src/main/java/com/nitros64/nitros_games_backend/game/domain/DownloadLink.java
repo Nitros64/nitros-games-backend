@@ -1,6 +1,6 @@
 package com.nitros64.nitros_games_backend.game.domain;
 
-import com.nitros64.nitros_games_backend.shared.domain.Base;
+import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 
 import jakarta.persistence.Column;
@@ -12,15 +12,13 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
-@Table(name = "downloadLink")
+@Table(name = "download_link")
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
 @Getter
-public class DownloadLink extends Base {
+public class DownloadLink extends AbstractEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -34,4 +32,13 @@ public class DownloadLink extends Base {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "fk_host_image")
     private ServerHostImage serverImage;
+
+    public void attachToVersion(GameVersion gameVersion) {
+        this.gameVersion = gameVersion;
+    }
+
+    public void updateDetails(String link, ServerHostImage serverImage) {
+        this.link = link;
+        this.serverImage = serverImage;
+    }
 }

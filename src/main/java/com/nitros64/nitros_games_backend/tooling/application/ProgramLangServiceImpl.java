@@ -62,7 +62,7 @@ public class ProgramLangServiceImpl implements ProgramLangService {
     @Transactional
     public ProgrammingLanguage update(Long id, ProgrammingLanguage language) {
         ProgrammingLanguage existing = findById(id);
-        existing.setName(language.getName());
+        existing.rename(language.getName());
         return languages.save(existing);
     }
 

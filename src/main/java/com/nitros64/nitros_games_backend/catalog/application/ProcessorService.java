@@ -54,7 +54,7 @@ public class ProcessorService {
     @Transactional
     public Processor update(Long id, Processor processor) {
         Processor existing = findById(id);
-        existing.setName(processor.getName());
+        existing.rename(processor.getName());
         return processors.save(existing);
     }
 
