@@ -131,6 +131,7 @@ or `HEAD`; all API mutations require the `ADMIN` role. Preflight requests are
 evaluated against an external origin allowlist, and all otherwise unmatched
 routes are denied.
 
-The current administrator is an in-memory operational identity whose password
-is BCrypt-encoded at startup. This boundary can later replace HTTP Basic with an
-OIDC/JWT resource server without changing feature modules.
+The application is an OAuth2 Resource Server. It validates JWT issuer,
+signature, lifetime and audience, then maps Keycloak realm role `ADMIN` to the
+Spring authority used by feature policies. Authentication remains isolated in
+this module, so feature modules do not depend on Keycloak-specific contracts.

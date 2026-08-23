@@ -11,12 +11,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -31,7 +33,9 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            ApiProblemWriter problemWriter) throws Exception {
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            AuthenticationEntryPoint authenticationEntryPoint,
+            AccessDeniedHandler accessDeniedHandler) throws Exception {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
@@ -50,41 +54,57 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/**").hasRole("ADMIN")
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
-                .exceptionHandling(exceptions -> exceptions.accessDeniedHandler(
-                        (request, response, exception) -> problemWriter.write(
-                                response,
-                                ApiProblem.create(
-                                        HttpStatus.FORBIDDEN,
-                                        "Access denied",
-                                        "access_denied",
-                                        "Administrator privileges are required",
-                                        request.getRequestURI()))))
-                .httpBasic(basic -> basic.authenticationEntryPoint((request, response, exception) ->
-                        problemWriter.write(
-                                response,
-                                ApiProblem.create(
-                                        HttpStatus.UNAUTHORIZED,
-                                        "Authentication required",
-                                        "authentication_required",
-                                        "Administrator authentication is required",
-                                        request.getRequestURI()))))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
                 .build();
     }
 
     @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        var authorities = new DelegatingJwtGrantedAuthoritiesConverter(
+                new JwtGrantedAuthoritiesConverter(),
+                new KeycloakRealmRoleConverter());
+        var converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authorities);
+        converter.setPrincipalClaimName("preferred_username");
+        return converter;
     }
 
     @Bean
-    UserDetailsService userDetailsService(
-            SecurityProperties properties,
-            PasswordEncoder passwordEncoder) {
-        var admin = User.withUsername(properties.getAdminUsername())
-                .password(passwordEncoder.encode(properties.getAdminPassword()))
-                .roles("ADMIN")
-                .build();
-        return new InMemoryUserDetailsManager(admin);
+    AuthenticationEntryPoint authenticationEntryPoint(ApiProblemWriter problemWriter) {
+        var bearerEntryPoint = new BearerTokenAuthenticationEntryPoint();
+        return (request, response, exception) -> {
+            bearerEntryPoint.commence(request, response, exception);
+            problemWriter.write(
+                    response,
+                    ApiProblem.create(
+                            HttpStatus.UNAUTHORIZED,
+                            "Authentication required",
+                            "authentication_required",
+                            "A valid administrator access token is required",
+                            request.getRequestURI()));
+        };
+    }
+
+    @Bean
+    AccessDeniedHandler accessDeniedHandler(ApiProblemWriter problemWriter) {
+        var bearerAccessDeniedHandler = new BearerTokenAccessDeniedHandler();
+        return (request, response, exception) -> {
+            bearerAccessDeniedHandler.handle(request, response, exception);
+            problemWriter.write(
+                    response,
+                    ApiProblem.create(
+                            HttpStatus.FORBIDDEN,
+                            "Access denied",
+                            "access_denied",
+                            "Administrator privileges are required",
+                            request.getRequestURI()));
+        };
     }
 
     @Bean

@@ -1,6 +1,33 @@
 name: nitros-games
 
 services:
+  keycloak:
+    profiles:
+      - identity
+    image: quay.io/keycloak/keycloak:26.7.0
+    command:
+      - start-dev
+      - --import-realm
+    restart: unless-stopped
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HEALTH_ENABLED: "true"
+      NITROS_GAMES_CLI_SECRET: ${NITROS_GAMES_CLI_SECRET:?Set NITROS_GAMES_CLI_SECRET}
+    ports:
+      - ${KEYCLOAK_PORT:-8081}:8080
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${KEYCLOAK_MEMORY_LIMIT:-768m}
+    pids_limit: 300
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
   mysql:
     image: mysql:8.4.11
     restart: unless-stopped
@@ -49,9 +76,10 @@ services:
       APP_STORAGE_HOST_IMAGES_DIRECTORY: /var/lib/nitros-games/host-images
       APP_STORAGE_MAX_FILE_SIZE: ${APP_STORAGE_MAX_FILE_SIZE:-10MB}
       APP_STORAGE_MAX_REQUEST_SIZE: ${APP_STORAGE_MAX_REQUEST_SIZE:-11MB}
-      APP_SECURITY_ADMIN_USERNAME: ${APP_SECURITY_ADMIN_USERNAME:-admin}
-      APP_SECURITY_ADMIN_PASSWORD: ${APP_SECURITY_ADMIN_PASSWORD:?Set APP_SECURITY_ADMIN_PASSWORD}
       APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS:-http://localhost:4200}
+      OAUTH2_ISSUER_URI: ${OAUTH2_ISSUER_URI:-http://localhost:8081/realms/nitros-games}
+      OAUTH2_JWK_SET_URI: ${OAUTH2_JWK_SET_URI:-http://keycloak:8080/realms/nitros-games/protocol/openid-connect/certs}
+      OAUTH2_AUDIENCE: ${OAUTH2_AUDIENCE:-nitros-games-api}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-2}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-10}

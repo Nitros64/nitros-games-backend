@@ -1,6 +1,6 @@
 package com.nitros64.nitros_games_backend.tooling.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.adminJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,9 +49,6 @@ import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorReposi
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ToolingApiContractTests {
-
-    private static final String ADMIN_USERNAME = "test-admin";
-    private static final String ADMIN_PASSWORD = "test-admin-password";
 
     @Autowired
     private MockMvc mockMvc;
@@ -392,7 +389,7 @@ class ToolingApiContractTests {
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
-        return httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD);
+        return adminJwt();
     }
 
     private String nameJson(String name) {
