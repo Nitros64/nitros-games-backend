@@ -2,9 +2,11 @@ package com.nitros64.nitros_games_backend.game.application;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,17 +54,28 @@ public class GameApplicationService {
 
     @Transactional(readOnly = true)
     public List<GameDetails> findAllGames() {
-        return games.findAll().stream().map(this::toDetails).toList();
+        return games.findAllDetailed().stream().map(this::toDetails).toList();
     }
 
     @Transactional(readOnly = true)
     public Page<GameDetails> findAllGames(Pageable pageable) {
-        return games.findAll(pageable).map(this::toDetails);
+        return hydrate(games.findAllIds(pageable), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<GameDetails> searchGames(GameSearchCriteria criteria, Pageable pageable) {
+        return hydrate(games.searchIds(
+                criteria.name(),
+                criteria.developmentDifficultyId(),
+                criteria.genreId(),
+                criteria.jam(),
+                pageable), pageable);
     }
 
     @Transactional(readOnly = true)
     public GameDetails findGame(Long gameId) {
-        return toDetails(requireGame(gameId));
+        return toDetails(games.findDetailedById(gameId)
+                .orElseThrow(() -> new ResourceNotFoundException("Game not found")));
     }
 
     @Transactional
@@ -192,22 +205,26 @@ public class GameApplicationService {
     }
 
     private GameVersion requireVersion(Long gameId, Long versionId) {
-        var version = versions.findById(versionId)
+        return versions.findByIdAndGameId(versionId, gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Game version not found"));
-        if (!version.getGame().getId().equals(gameId)) {
-            throw new ResourceNotFoundException("Game version not found");
-        }
-        return version;
     }
 
     private DownloadLink requireDownloadLink(Long gameId, Long versionId, Long linkId) {
-        requireVersion(gameId, versionId);
-        var link = downloadLinks.findById(linkId)
+        return downloadLinks.findDetailedByIdAndHierarchy(linkId, versionId, gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Download link not found"));
-        if (!link.getGameVersion().getId().equals(versionId)) {
-            throw new ResourceNotFoundException("Download link not found");
+    }
+
+    private Page<GameDetails> hydrate(Page<Long> gameIds, Pageable pageable) {
+        if (gameIds.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, gameIds.getTotalElements());
         }
-        return link;
+        var gamesById = games.findDetailedByIdIn(gameIds.getContent()).stream()
+                .collect(Collectors.toMap(GameData::getId, Function.identity()));
+        var details = gameIds.getContent().stream()
+                .map(gamesById::get)
+                .map(this::toDetails)
+                .toList();
+        return new PageImpl<>(details, pageable, gameIds.getTotalElements());
     }
 
     private GameDetails toDetails(GameData game) {

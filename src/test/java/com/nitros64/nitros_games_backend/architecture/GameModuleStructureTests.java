@@ -18,6 +18,7 @@ import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
 import com.nitros64.nitros_games_backend.game.application.DownloadLinkDetails;
 import com.nitros64.nitros_games_backend.game.application.GameApplicationService;
 import com.nitros64.nitros_games_backend.game.application.GameDetails;
+import com.nitros64.nitros_games_backend.game.application.GameSearchCriteria;
 import com.nitros64.nitros_games_backend.game.application.GameVersionDetails;
 import com.nitros64.nitros_games_backend.game.application.SaveDownloadLinkCommand;
 import com.nitros64.nitros_games_backend.game.application.SaveGameCommand;
@@ -42,6 +43,7 @@ class GameModuleStructureTests {
                 SaveGameCommand.class, SaveGameVersionCommand.class,
                 SaveDownloadLinkCommand.class,
                 GameDetails.class, GameVersionDetails.class, DownloadLinkDetails.class,
+                GameSearchCriteria.class,
                 GameDataRepository.class, GameVersionRepository.class,
                 DownloadLinkRepository.class,
                 GameController.class, GameApiMapper.class,
