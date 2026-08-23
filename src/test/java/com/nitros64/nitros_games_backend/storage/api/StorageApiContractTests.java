@@ -1,7 +1,7 @@
 package com.nitros64.nitros_games_backend.storage.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.adminJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -40,8 +40,6 @@ class StorageApiContractTests {
 
     private static final byte[] PNG_IMAGE = Base64.getDecoder().decode(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
-    private static final String ADMIN_USERNAME = "test-admin";
-    private static final String ADMIN_PASSWORD = "test-admin-password";
     private static final Path STORAGE_DIRECTORY = Path.of(
             "target/test-storage/host-images").toAbsolutePath().normalize();
 
@@ -272,7 +270,7 @@ class StorageApiContractTests {
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
-        return httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD);
+        return adminJwt();
     }
 
     private long storedFileCount() throws IOException {

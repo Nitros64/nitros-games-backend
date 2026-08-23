@@ -19,15 +19,10 @@ class ConfigurationSecurityTests {
         Properties production = loadProperties("application-prod.properties");
 
         assertNull(common.getProperty("spring.datasource.password"));
-        assertNull(common.getProperty("app.security.admin-password"));
         assertEquals("${DB_PASSWORD}", local.getProperty("spring.datasource.password"));
         assertEquals("${DB_PASSWORD}", production.getProperty("spring.datasource.password"));
-        assertEquals(
-                "${APP_SECURITY_ADMIN_PASSWORD}",
-                local.getProperty("app.security.admin-password"));
-        assertEquals(
-                "${APP_SECURITY_ADMIN_PASSWORD}",
-                production.getProperty("app.security.admin-password"));
+        assertNull(local.getProperty("app.security.admin-password"));
+        assertNull(production.getProperty("app.security.admin-password"));
     }
 
     @Test
@@ -41,11 +36,17 @@ class ConfigurationSecurityTests {
                 "${APP_STORAGE_HOST_IMAGES_DIRECTORY}",
                 properties.getProperty("app.storage.host-images.directory"));
         assertEquals(
-                "${APP_SECURITY_ADMIN_USERNAME}",
-                properties.getProperty("app.security.admin-username"));
-        assertEquals(
                 "${APP_SECURITY_ALLOWED_ORIGINS}",
                 properties.getProperty("app.security.allowed-origins"));
+        assertEquals(
+                "${OAUTH2_ISSUER_URI}",
+                properties.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri"));
+        assertEquals(
+                "${OAUTH2_JWK_SET_URI}",
+                properties.getProperty("spring.security.oauth2.resourceserver.jwt.jwk-set-uri"));
+        assertEquals(
+                "${OAUTH2_AUDIENCE}",
+                properties.getProperty("spring.security.oauth2.resourceserver.jwt.audiences[0]"));
     }
 
     @Test

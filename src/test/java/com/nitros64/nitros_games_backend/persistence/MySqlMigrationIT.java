@@ -38,9 +38,10 @@ import jakarta.persistence.EntityManager;
         "spring.flyway.baseline-on-migrate=false",
         "spring.jpa.hibernate.ddl-auto=validate",
         "app.storage.host-images.directory=target/test-storage/mysql-it",
-        "app.security.admin-username=test-admin",
-        "app.security.admin-password=test-admin-password",
-        "app.security.allowed-origins=http://localhost:4200"
+        "app.security.allowed-origins=http://localhost:4200",
+        "spring.security.oauth2.resourceserver.jwt.issuer-uri=https://issuer.example.test/realms/nitros-games",
+        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://issuer.example.test/realms/nitros-games/protocol/openid-connect/certs",
+        "spring.security.oauth2.resourceserver.jwt.audiences[0]=nitros-games-api"
 })
 @Transactional
 class MySqlMigrationIT {

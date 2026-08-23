@@ -10,6 +10,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import jakarta.persistence.EntityManagerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.adminJwt;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.userJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -18,8 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -56,7 +56,7 @@ class NitrosGamesBackendApplicationTests {
 				.andExpect(status().isUnauthorized());
 
 		mockMvc.perform(get("/actuator/prometheus")
-					.with(httpBasic("test-admin", "test-admin-password")))
+					.with(adminJwt()))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"jvm_memory_used_bytes")));
@@ -104,7 +104,7 @@ class NitrosGamesBackendApplicationTests {
 	@Test
 	void invalidRequestUsesValidationProblemWithoutRejectedValue() throws Exception {
 		mockMvc.perform(post("/api/v1/gamegenre/add")
-					.with(httpBasic("test-admin", "test-admin-password"))
+					.with(adminJwt())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":\"12\"}"))
 				.andExpect(status().isBadRequest())
@@ -122,7 +122,7 @@ class NitrosGamesBackendApplicationTests {
 	@Test
 	void malformedJsonDoesNotExposeParserInternals() throws Exception {
 		mockMvc.perform(post("/api/v1/gamegenre/add")
-					.with(httpBasic("test-admin", "test-admin-password"))
+					.with(adminJwt())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"name\":"))
 				.andExpect(status().isBadRequest())
@@ -155,23 +155,40 @@ class NitrosGamesBackendApplicationTests {
 	void mutationsRequireAuthentication() throws Exception {
 		mockMvc.perform(delete("/api/v1/gamegenre/9999"))
 				.andExpect(status().isUnauthorized())
-				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
+				.andExpect(header().string(
+						HttpHeaders.WWW_AUTHENTICATE,
+						org.hamcrest.Matchers.startsWith("Bearer")))
 				.andExpect(content().contentType("application/problem+json"))
+				.andExpect(jsonPath("$.code").value("authentication_required"));
+	}
+
+	@Test
+	void malformedBearerTokenUsesAuthenticationProblemContract() throws Exception {
+		mockMvc.perform(delete("/api/v1/gamegenre/9999")
+					.header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string(
+						HttpHeaders.WWW_AUTHENTICATE,
+						org.hamcrest.Matchers.startsWith("Bearer")))
+				.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.code").value("authentication_required"));
 	}
 
 	@Test
 	void administratorCanExecuteMutations() throws Exception {
 		mockMvc.perform(delete("/api/v1/gamegenre/9999")
-					.with(httpBasic("test-admin", "test-admin-password")))
+					.with(adminJwt()))
 				.andExpect(status().isNoContent());
 	}
 
 	@Test
 	void authenticatedUserWithoutAdminRoleCannotExecuteMutations() throws Exception {
 		mockMvc.perform(delete("/api/v1/gamegenre/9999")
-					.with(user("catalog-reader").roles("USER")))
+					.with(userJwt()))
 				.andExpect(status().isForbidden())
+				.andExpect(header().string(
+						HttpHeaders.WWW_AUTHENTICATE,
+						org.hamcrest.Matchers.startsWith("Bearer")))
 				.andExpect(content().contentType("application/problem+json"))
 				.andExpect(jsonPath("$.code").value("access_denied"));
 	}

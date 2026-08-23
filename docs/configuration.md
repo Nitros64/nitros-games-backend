@@ -13,7 +13,9 @@ PowerShell:
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
 $env:DB_PASSWORD = "your-local-password"
-$env:APP_SECURITY_ADMIN_PASSWORD = "a-long-random-local-password"
+$env:OAUTH2_ISSUER_URI = "http://localhost:8081/realms/nitros-games"
+$env:OAUTH2_JWK_SET_URI = "http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs"
+$env:OAUTH2_AUDIENCE = "nitros-games-api"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -22,7 +24,9 @@ Bash:
 ```shell
 export SPRING_PROFILES_ACTIVE=local
 export DB_PASSWORD=your-local-password
-export APP_SECURITY_ADMIN_PASSWORD=a-long-random-local-password
+export OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games
+export OAUTH2_JWK_SET_URI=http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs
+export OAUTH2_AUDIENCE=nitros-games-api
 ./mvnw spring-boot:run
 ```
 
@@ -46,9 +50,10 @@ environment or a secrets manager:
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `APP_STORAGE_HOST_IMAGES_DIRECTORY`
-- `APP_SECURITY_ADMIN_USERNAME`
-- `APP_SECURITY_ADMIN_PASSWORD`
 - `APP_SECURITY_ALLOWED_ORIGINS`
+- `OAUTH2_ISSUER_URI`
+- `OAUTH2_JWK_SET_URI`
+- `OAUTH2_AUDIENCE`
 
 `DB_URL` must use the TLS settings required by the production MySQL provider.
 Production validates the existing schema and never creates or updates it.
@@ -94,19 +99,20 @@ file signature.
 ## HTTP security
 
 All `GET /api/**` endpoints remain public. `POST`, `PUT` and `DELETE` requests
-require an administrator authenticated with HTTP Basic and the `ADMIN` role.
-The application is stateless and does not create login sessions.
+require a Bearer JWT whose `realm_access.roles` contains `ADMIN`. The resource
+server also preserves standard `SCOPE_` authorities and uses
+`preferred_username` as the authenticated principal when available.
 
-Configure the account with `APP_SECURITY_ADMIN_USERNAME` and a random
-`APP_SECURITY_ADMIN_PASSWORD` of at least 16 characters. Production requires
-both values. HTTP Basic must only be exposed through HTTPS; it is an incremental
-operator-access mechanism, not a replacement for a future user domain or an
-OIDC/JWT identity provider.
+`OAUTH2_ISSUER_URI`, `OAUTH2_JWK_SET_URI` and `OAUTH2_AUDIENCE` are mandatory in
+production. Spring Security verifies the signature, issuer, time constraints
+and audience. Keeping the externally visible issuer separate from the internal
+JWK URL allows the Compose API to validate tokens issued as
+`http://localhost:8081` while resolving keys through the Docker network.
 
-Clients must send the `Authorization` header explicitly on each mutation. The
-server does not emit a browser Basic-authentication challenge, does not use
-authentication cookies and does not allow credentialed CORS requests. CSRF is
-therefore disabled for this stateless header-only API contract.
+Clients send `Authorization: Bearer <token>` on every protected request. The
+application creates no authentication session or cookie and disallows
+credentialed CORS, so CSRF is disabled for this stateless header-only contract.
+Use HTTPS for the API and identity provider in production.
 
 `APP_SECURITY_ALLOWED_ORIGINS` is a comma-separated allowlist of complete web
 origins, for example `https://admin.example.com,https://www.example.com`.
@@ -123,5 +129,5 @@ with every clone and collaborator.
 
 ## Tests
 
-Tests activate `test` themselves and use an in-memory H2 database. They do not
-read `DB_URL`, `DB_USERNAME` or `DB_PASSWORD`.
+Tests activate `test` themselves, use an in-memory H2 database and inject mock
+JWTs into MVC requests. They do not read database or identity-provider secrets.

@@ -1,7 +1,7 @@
 package com.nitros64.nitros_games_backend.game.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.adminJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,9 +54,6 @@ import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepo
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class GameApiContractTests {
-
-    private static final String ADMIN_USERNAME = "test-admin";
-    private static final String ADMIN_PASSWORD = "test-admin-password";
 
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
@@ -364,7 +361,7 @@ class GameApiContractTests {
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
-        return httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD);
+        return adminJwt();
     }
 
     private void clearDatabase() {

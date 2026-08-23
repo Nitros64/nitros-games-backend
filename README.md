@@ -28,7 +28,7 @@ con límites comprobados mediante pruebas de arquitectura.
 - Spring MVC, Bean Validation y contratos HTTP basados en DTOs.
 - Spring Data JPA con Hibernate; las entidades no se exponen en la API.
 - MySQL 8.4.11 en producción y Flyway como propietario del esquema.
-- Spring Security stateless con una identidad administrativa operacional.
+- Spring Security OAuth2 Resource Server stateless con JWT y roles de Keycloak.
 - Errores uniformes mediante RFC Problem Details (`application/problem+json`).
 - Subida segura de imágenes PNG, JPEG y GIF con verificación de firma.
 - Actuator, métricas Prometheus, logs JSON y correlación con `X-Request-ID`.
@@ -83,15 +83,15 @@ host; solo Docker con Compose.
    cp .env.example .env
    ```
 
-2. Edita `.env` y sustituye `DB_PASSWORD`, `DB_ROOT_PASSWORD` y
-   `APP_SECURITY_ADMIN_PASSWORD` por tres valores aleatorios diferentes. La
-   contraseña administrativa debe tener al menos 16 caracteres.
+2. Edita `.env` y sustituye `DB_PASSWORD`, `DB_ROOT_PASSWORD`,
+   `KEYCLOAK_ADMIN_PASSWORD` y `NITROS_GAMES_CLI_SECRET` por valores aleatorios
+   diferentes. Estos valores son secretos locales y no deben versionarse.
 
-3. Valida la configuración e inicia MySQL y la API:
+3. Valida la configuración e inicia MySQL, Keycloak y la API:
 
    ```shell
-   docker compose config --quiet
-   docker compose up -d --build --wait
+   docker compose --profile identity config --quiet
+   docker compose --profile identity up -d --build --wait
    docker compose ps
    ```
 
@@ -107,14 +107,15 @@ host; solo Docker con Compose.
    Invoke-RestMethod http://localhost:8080/actuator/health/readiness
    ```
 
-La API queda disponible en `http://localhost:8080`. MySQL no publica su puerto
-al host. Los datos se conservan en los volúmenes `mysql-data` y `host-images`.
+La API queda disponible en `http://localhost:8080` y Keycloak en
+`http://localhost:8081`. MySQL no publica su puerto al host. Los datos de MySQL
+y las imágenes se conservan en los volúmenes `mysql-data` y `host-images`.
 
 Para consultar logs o detener los contenedores sin borrar datos:
 
 ```shell
 docker compose logs -f api
-docker compose down
+docker compose --profile identity down
 ```
 
 `docker compose down --volumes` elimina permanentemente la base de datos y las
@@ -126,7 +127,8 @@ El repositorio incluye Maven Wrapper, por lo que no es necesario instalar
 Maven. Para ejecutar la aplicación fuera de Docker necesitas JDK 21 y una
 instancia MySQL accesible.
 
-Puedes iniciar únicamente una base de datos de desarrollo con Docker:
+Puedes iniciar la base de datos y el proveedor de identidad de desarrollo con
+Docker:
 
 ```shell
 docker run --name nitros-games-mysql-dev --detach --publish 3306:3306 \
@@ -135,6 +137,8 @@ docker run --name nitros-games-mysql-dev --detach --publish 3306:3306 \
   --env MYSQL_PASSWORD=local-db-password \
   --env MYSQL_ROOT_PASSWORD=local-root-password \
   mysql:8.4.11
+
+docker compose --profile identity up -d keycloak
 ```
 
 Configura después el perfil `local` y arranca Spring Boot.
@@ -144,7 +148,9 @@ PowerShell:
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
 $env:DB_PASSWORD = "local-db-password"
-$env:APP_SECURITY_ADMIN_PASSWORD = "local-admin-password-123"
+$env:OAUTH2_ISSUER_URI = "http://localhost:8081/realms/nitros-games"
+$env:OAUTH2_JWK_SET_URI = "http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs"
+$env:OAUTH2_AUDIENCE = "nitros-games-api"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -153,7 +159,9 @@ Bash:
 ```shell
 export SPRING_PROFILES_ACTIVE=local
 export DB_PASSWORD=local-db-password
-export APP_SECURITY_ADMIN_PASSWORD=local-admin-password-123
+export OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games
+export OAUTH2_JWK_SET_URI=http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs
+export OAUTH2_AUDIENCE=nitros-games-api
 ./mvnw spring-boot:run
 ```
 
@@ -211,12 +219,35 @@ GET /api/v1/programming-tools/search?name=gradle&toolTypeId=1
     &languageId=1&platformId=1&processorId=1&page=0&size=20&sort=name,asc
 ```
 
-### Ejemplo: crear un género
+### Ejemplo: obtener un token y crear un género
 
-Las mutaciones requieren las credenciales administrativas configuradas:
+Para pruebas locales, el cliente confidencial `nitros-games-cli` usa el flujo
+`client_credentials`. Su secreto es el valor local de
+`NITROS_GAMES_CLI_SECRET`:
+
+```powershell
+$env:NITROS_GAMES_CLI_SECRET = "el-mismo-valor-configurado-en-.env"
+
+$token = Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8081/realms/nitros-games/protocol/openid-connect/token" `
+  -ContentType "application/x-www-form-urlencoded" `
+  -Body @{
+    grant_type = "client_credentials"
+    client_id = "nitros-games-cli"
+    client_secret = $env:NITROS_GAMES_CLI_SECRET
+  }
+
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8080/api/v1/game-genres" `
+  -Headers @{ Authorization = "Bearer $($token.access_token)" } `
+  -ContentType "application/json" `
+  -Body '{"name":"Strategy"}'
+```
+
+La petición HTTP equivalente es:
 
 ```shell
-curl --user admin:your-admin-password \
+curl --header "Authorization: Bearer $ACCESS_TOKEN" \
   --header "Content-Type: application/json" \
   --data '{"name":"Strategy"}' \
   http://localhost:8080/api/v1/game-genres
@@ -287,20 +318,27 @@ la respuesta.
 ## Seguridad
 
 - `GET` y `HEAD` bajo `/api/**` son públicos.
-- `POST`, `PUT` y `DELETE` requieren rol `ADMIN` mediante HTTP Basic.
+- `POST`, `PUT` y `DELETE` requieren un JWT con el rol de realm `ADMIN`.
 - La aplicación es stateless y no crea sesiones de autenticación.
 - CORS usa una allowlist explícita; los comodines están rechazados.
 - Actuator health es público y `/actuator/prometheus` requiere administrador.
-- En producción, HTTP Basic debe usarse exclusivamente detrás de HTTPS.
+- El emisor, las claves JWK y la audiencia del token se validan explícitamente.
+- En producción, los tokens deben enviarse exclusivamente mediante HTTPS.
 
-La identidad administrativa es una cuenta operacional en memoria, no un
-sistema de usuarios finales. Se configura con:
+El realm de desarrollo incluye un cliente público `nitros-games-web` preparado
+para Authorization Code con PKCE y el cliente operacional
+`nitros-games-cli`. La API acepta proveedores OIDC compatibles configurando:
 
 ```text
-APP_SECURITY_ADMIN_USERNAME
-APP_SECURITY_ADMIN_PASSWORD
+OAUTH2_ISSUER_URI
+OAUTH2_JWK_SET_URI
+OAUTH2_AUDIENCE
 APP_SECURITY_ALLOWED_ORIGINS
 ```
+
+El Keycloak de Compose ejecuta `start-dev`: facilita desarrollo y entrevistas,
+pero producción debe usar un proveedor OIDC gestionado o una instalación de
+Keycloak endurecida, persistente y publicada detrás de HTTPS.
 
 ## Base de datos
 
@@ -330,7 +368,7 @@ La creación y modificación de imágenes usa `multipart/form-data`:
 Ejemplo:
 
 ```shell
-curl --user admin:your-admin-password \
+curl --header "Authorization: Bearer $ACCESS_TOKEN" \
   --form "name=MediaFire" \
   --form "fileHostImage=@mediafire.png;type=image/png" \
   http://localhost:8080/api/v1/server-host-images

@@ -1,6 +1,6 @@
 package com.nitros64.nitros_games_backend.catalog.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.nitros64.nitros_games_backend.security.JwtTestSupport.adminJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,9 +35,6 @@ import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CatalogApiContractTests {
-
-    private static final String ADMIN_USERNAME = "test-admin";
-    private static final String ADMIN_PASSWORD = "test-admin-password";
 
     @Autowired
     private MockMvc mockMvc;
@@ -74,7 +71,7 @@ class CatalogApiContractTests {
         String basePath = "/api/v1/" + resource;
 
         String createdJson = mockMvc.perform(post(basePath)
-                    .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                    .with(adminJwt())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(initialName)))
                 .andExpect(status().isCreated())
@@ -95,7 +92,7 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.length()").value(2));
 
         mockMvc.perform(put(basePath + "/" + id.longValue())
-                    .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                    .with(adminJwt())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(updatedName)))
                 .andExpect(status().isOk())
@@ -104,7 +101,7 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.length()").value(2));
 
         mockMvc.perform(post(basePath + "/batch")
-                    .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                    .with(adminJwt())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("[" + json(bulkNameOne) + "," + json(bulkNameTwo) + "]"))
                 .andExpect(status().isCreated())
@@ -140,7 +137,7 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.size").value(100));
 
         mockMvc.perform(delete(basePath + "/" + id.longValue())
-                    .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                    .with(adminJwt()))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
@@ -154,7 +151,7 @@ class CatalogApiContractTests {
     @MethodSource("catalogValidationCases")
     void requestDtoOwnsValidation(String resource, String invalidName) throws Exception {
         mockMvc.perform(post("/api/v1/" + resource)
-                    .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                    .with(adminJwt())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(invalidName)))
                 .andExpect(status().isBadRequest())
