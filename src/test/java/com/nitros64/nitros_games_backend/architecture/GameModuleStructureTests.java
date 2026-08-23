@@ -2,12 +2,15 @@ package com.nitros64.nitros_games_backend.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import com.nitros64.nitros_games_backend.game.api.DownloadLinkController;
 import com.nitros64.nitros_games_backend.game.api.GameController;
+import com.nitros64.nitros_games_backend.game.api.GameVersionController;
 import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkResponse;
 import com.nitros64.nitros_games_backend.game.api.dto.GameRequest;
@@ -46,7 +49,8 @@ class GameModuleStructureTests {
                 GameSearchCriteria.class,
                 GameDataRepository.class, GameVersionRepository.class,
                 DownloadLinkRepository.class,
-                GameController.class, GameApiMapper.class,
+                GameController.class, GameVersionController.class,
+                DownloadLinkController.class, GameApiMapper.class,
                 GameRequest.class, GameResponse.class,
                 GameVersionRequest.class, GameVersionResponse.class,
                 DownloadLinkRequest.class, DownloadLinkResponse.class);
@@ -57,10 +61,31 @@ class GameModuleStructureTests {
     }
 
     @Test
-    void gameControllerDoesNotExposeJpaEntities() {
-        Stream.of(GameController.class.getDeclaredMethods())
+    void gameControllersDoNotExposeJpaEntities() {
+        Stream.of(
+                        GameController.class,
+                        GameVersionController.class,
+                        DownloadLinkController.class)
+                .flatMap(type -> Arrays.stream(type.getDeclaredMethods()))
                 .map(method -> method.toGenericString())
                 .forEach(signature -> assertThat(signature)
                         .doesNotContain(GAME_PACKAGE + ".domain."));
+    }
+
+    @Test
+    void eachControllerOwnsOneResourceLevel() {
+        assertThat(methodNames(GameController.class))
+                .containsExactlyInAnyOrder("findAll", "findAll", "search", "findOne",
+                        "create", "update", "delete");
+        assertThat(methodNames(GameVersionController.class))
+                .containsExactlyInAnyOrder("findAll", "findOne", "create", "update", "delete");
+        assertThat(methodNames(DownloadLinkController.class))
+                .containsExactlyInAnyOrder("findAll", "findOne", "create", "update", "delete");
+    }
+
+    private List<String> methodNames(Class<?> type) {
+        return Arrays.stream(type.getDeclaredMethods())
+                .map(method -> method.getName())
+                .toList();
     }
 }

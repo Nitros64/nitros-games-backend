@@ -16,12 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkRequest;
-import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkResponse;
 import com.nitros64.nitros_games_backend.game.api.dto.GameRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameResponse;
-import com.nitros64.nitros_games_backend.game.api.dto.GameVersionRequest;
-import com.nitros64.nitros_games_backend.game.api.dto.GameVersionResponse;
 import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
 import com.nitros64.nitros_games_backend.game.application.GameApplicationService;
 import com.nitros64.nitros_games_backend.game.application.GameSearchCriteria;
@@ -94,104 +90,6 @@ public class GameController {
     @DeleteMapping("/{gameId}")
     public ResponseEntity<Void> delete(@PathVariable @Positive Long gameId) {
         service.deleteGame(gameId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{gameId}/versions")
-    public ResponseEntity<List<GameVersionResponse>> findVersions(
-            @PathVariable @Positive Long gameId) {
-        return ResponseEntity.ok(service.findVersions(gameId).stream().map(mapper::toResponse).toList());
-    }
-
-    @GetMapping("/{gameId}/versions/{versionId}")
-    public ResponseEntity<GameVersionResponse> findVersion(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId) {
-        return ResponseEntity.ok(mapper.toResponse(service.findVersion(gameId, versionId)));
-    }
-
-    @PostMapping(path = "/{gameId}/versions", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GameVersionResponse> createVersion(
-            @PathVariable @Positive Long gameId,
-            @Valid @RequestBody GameVersionRequest request) {
-        var response = mapper.toResponse(service.createVersion(gameId, mapper.toCommand(request)));
-        return ApiResponse.created(
-                response,
-                "/api/v1/games/{gameId}/versions/{versionId}",
-                gameId,
-                response.id());
-    }
-
-    @PutMapping(path = "/{gameId}/versions/{versionId}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GameVersionResponse> updateVersion(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId,
-            @Valid @RequestBody GameVersionRequest request) {
-        return ResponseEntity.ok(mapper.toResponse(
-                service.updateVersion(gameId, versionId, mapper.toCommand(request))));
-    }
-
-    @DeleteMapping("/{gameId}/versions/{versionId}")
-    public ResponseEntity<Void> deleteVersion(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId) {
-        service.deleteVersion(gameId, versionId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{gameId}/versions/{versionId}/download-links")
-    public ResponseEntity<List<DownloadLinkResponse>> findDownloadLinks(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId) {
-        return ResponseEntity.ok(service.findDownloadLinks(gameId, versionId).stream()
-                .map(mapper::toResponse)
-                .toList());
-    }
-
-    @GetMapping("/{gameId}/versions/{versionId}/download-links/{linkId}")
-    public ResponseEntity<DownloadLinkResponse> findDownloadLink(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId,
-            @PathVariable @Positive Long linkId) {
-        return ResponseEntity.ok(mapper.toResponse(
-                service.findDownloadLink(gameId, versionId, linkId)));
-    }
-
-    @PostMapping(
-            path = "/{gameId}/versions/{versionId}/download-links",
-            consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DownloadLinkResponse> createDownloadLink(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId,
-            @Valid @RequestBody DownloadLinkRequest request) {
-        var response = mapper.toResponse(
-                service.createDownloadLink(gameId, versionId, mapper.toCommand(request)));
-        return ApiResponse.created(
-                response,
-                "/api/v1/games/{gameId}/versions/{versionId}/download-links/{linkId}",
-                gameId,
-                versionId,
-                response.id());
-    }
-
-    @PutMapping(
-            path = "/{gameId}/versions/{versionId}/download-links/{linkId}",
-            consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DownloadLinkResponse> updateDownloadLink(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId,
-            @PathVariable @Positive Long linkId,
-            @Valid @RequestBody DownloadLinkRequest request) {
-        return ResponseEntity.ok(mapper.toResponse(
-                service.updateDownloadLink(gameId, versionId, linkId, mapper.toCommand(request))));
-    }
-
-    @DeleteMapping("/{gameId}/versions/{versionId}/download-links/{linkId}")
-    public ResponseEntity<Void> deleteDownloadLink(
-            @PathVariable @Positive Long gameId,
-            @PathVariable @Positive Long versionId,
-            @PathVariable @Positive Long linkId) {
-        service.deleteDownloadLink(gameId, versionId, linkId);
         return ResponseEntity.noContent().build();
     }
 }
