@@ -3,10 +3,10 @@ package com.nitros64.nitros_games_backend.catalog.persistence;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import com.nitros64.nitros_games_backend.catalog.domain.Platform;
+import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
-public interface PlatformRepository extends BaseRepository<Platform, Long> {
+public interface GameGenreRepository extends BaseRepository<GameGenre, Long> {
 
-    Page<Platform> findByNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<GameGenre> findByNameContainingIgnoreCase(String name, Pageable pageable);
 }

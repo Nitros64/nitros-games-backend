@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,25 +14,29 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyRequest;
 import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyResponse;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.DevelopmentDifficultyApiMapper;
-import com.nitros64.nitros_games_backend.catalog.application.DevelopDifficultyService;
+import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @RestController
+@Validated
 @RequestMapping("api/v1/developmentdifficulty")
 public class DevelopmentDifficultyController {
 
-    private final DevelopDifficultyService service;
+    private final DevelopmentDifficultyService service;
     private final DevelopmentDifficultyApiMapper mapper;
 
     public DevelopmentDifficultyController(
-            DevelopDifficultyService service,
+            DevelopmentDifficultyService service,
             DevelopmentDifficultyApiMapper mapper) {
         this.service = service;
         this.mapper = mapper;
@@ -45,6 +50,15 @@ public class DevelopmentDifficultyController {
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<DevelopmentDifficultyResponse>> getAll(Pageable pageable) {
         return ResponseEntity.ok(PageResponse.from(service.findAll(pageable), mapper::toResponse));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PageResponse<DevelopmentDifficultyResponse>> search(
+            @RequestParam @NotBlank @Size(max = 30) String name,
+            Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(
+                service.searchByName(name, pageable),
+                mapper::toResponse));
     }
 
     @GetMapping("/{id}")
