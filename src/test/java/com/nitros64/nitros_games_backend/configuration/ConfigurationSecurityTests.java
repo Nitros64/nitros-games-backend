@@ -64,6 +64,23 @@ class ConfigurationSecurityTests {
                 properties.getProperty("spring.lifecycle.timeout-per-shutdown-phase"));
     }
 
+    @Test
+    void productionUsesStructuredLogsAndRequestLatencyHistograms() throws IOException {
+        Properties common = loadProperties("application.properties");
+        Properties production = loadProperties("application-prod.properties");
+
+        assertEquals(
+                "health,prometheus",
+                common.getProperty("management.endpoints.web.exposure.include"));
+        assertEquals(
+                "logstash",
+                production.getProperty("logging.structured.format.console"));
+        assertEquals(
+                "true",
+                production.getProperty(
+                        "management.metrics.distribution.percentiles-histogram.http.server.requests"));
+    }
+
     private Properties loadProperties(String resourceName) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = new ClassPathResource(resourceName).getInputStream()) {
