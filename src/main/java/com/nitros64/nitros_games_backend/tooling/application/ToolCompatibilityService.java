@@ -7,21 +7,21 @@ import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundExce
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageToolId;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatformId;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessorId;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolPlatformDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolProcessorDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolLangRepo;
+import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 @Service
 public class ToolCompatibilityService {
 
-    private final ProgramToolLangRepo languageTools;
-    private final IToolPlatformDao toolPlatforms;
-    private final IToolProcessorDao toolProcessors;
+    private final LanguageToolRepository languageTools;
+    private final ToolPlatformRepository toolPlatforms;
+    private final ToolProcessorRepository toolProcessors;
 
     public ToolCompatibilityService(
-            ProgramToolLangRepo languageTools,
-            IToolPlatformDao toolPlatforms,
-            IToolProcessorDao toolProcessors) {
+            LanguageToolRepository languageTools,
+            ToolPlatformRepository toolPlatforms,
+            ToolProcessorRepository toolProcessors) {
         this.languageTools = languageTools;
         this.toolPlatforms = toolPlatforms;
         this.toolProcessors = toolProcessors;

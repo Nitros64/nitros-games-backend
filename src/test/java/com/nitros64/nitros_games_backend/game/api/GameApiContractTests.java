@@ -41,11 +41,11 @@ import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolPlatformDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolProcessorDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramLangRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolLangRepo;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
 
 @SpringBootTest
@@ -62,12 +62,12 @@ class GameApiContractTests {
     @Autowired GenreRepository genreRepository;
     @Autowired PlatformRepository platformRepository;
     @Autowired ProcessorRepository processorRepository;
-    @Autowired ProgramLangRepository languageRepository;
+    @Autowired ProgrammingLanguageRepository languageRepository;
     @Autowired ProgramToolTypeRepository toolTypeRepository;
-    @Autowired ProgramToolRepository toolRepository;
-    @Autowired ProgramToolLangRepo languageToolRepository;
-    @Autowired IToolPlatformDao toolPlatformRepository;
-    @Autowired IToolProcessorDao toolProcessorRepository;
+    @Autowired ProgrammingToolRepository toolRepository;
+    @Autowired LanguageToolRepository languageToolRepository;
+    @Autowired ToolPlatformRepository toolPlatformRepository;
+    @Autowired ToolProcessorRepository toolProcessorRepository;
     @Autowired ServerHostImageRepository hostImageRepository;
     @Autowired GameDataRepository gameRepository;
     @Autowired GameVersionRepository versionRepository;

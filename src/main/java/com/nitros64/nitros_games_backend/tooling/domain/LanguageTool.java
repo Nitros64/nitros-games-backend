@@ -1,6 +1,7 @@
 package com.nitros64.nitros_games_backend.tooling.domain;
 
-import jakarta.persistence.CascadeType;
+import java.io.Serializable;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -17,28 +18,25 @@ import org.hibernate.annotations.OnDeleteAction;
 
 
 @Entity
-@Table(name = "ToolLang")
+@Table(name = "tool_lang")
 @IdClass(LanguageToolId.class)
 @NoArgsConstructor
 @AllArgsConstructor
 @Setter
 @Getter
-public class LanguageTool {
+public class LanguageTool implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
-    @ManyToOne(optional = false,
-            cascade = CascadeType.ALL,
-            fetch = FetchType.EAGER)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "program_lang_id")
-    private ProgrammingLanguage program_language;
+    private ProgrammingLanguage programmingLanguage;
 
     @Id
-    @ManyToOne(optional = false,
-            cascade = CascadeType.ALL,
-            fetch = FetchType.EAGER)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "program_tool_id")
-    private ProgrammingTool program_tool;
-
+    private ProgrammingTool programmingTool;
 }

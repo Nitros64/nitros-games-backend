@@ -229,8 +229,8 @@ public class GameApplicationService {
                 version.getId(),
                 version.getGame().getId(),
                 version.getName(),
-                version.getLanguageTool().getProgram_language().getId(),
-                version.getLanguageTool().getProgram_tool().getId(),
+                version.getLanguageTool().getProgrammingLanguage().getId(),
+                version.getLanguageTool().getProgrammingTool().getId(),
                 version.getPlatformId(),
                 version.getProcessorId());
     }

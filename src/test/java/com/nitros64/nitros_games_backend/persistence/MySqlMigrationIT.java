@@ -7,12 +7,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;
 
 import com.nitros64.nitros_games_backend.catalog.persistence.GenreRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 
 @Testcontainers
 @SpringBootTest(properties = {
@@ -40,6 +43,9 @@ class MySqlMigrationIT {
 
     @Autowired
     private GenreRepository genreRepository;
+
+    @Autowired
+    private ProgrammingToolRepository programmingToolRepository;
 
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
@@ -72,5 +78,58 @@ class MySqlMigrationIT {
                 "select count(*) from gamedata where dev_difficulty_id = ?",
                 Integer.class,
                 difficultyId)).isEqualTo(2);
+    }
+
+    @Test
+    void programmingToolSearchRunsAgainstMySqlWithCompositeCompatibilityKeys() {
+        jdbcTemplate.update("insert into programtool_type (name) values (?)", "Build");
+        jdbcTemplate.update("insert into program_lang (name) values (?)", "Java");
+        jdbcTemplate.update("insert into platform (name) values (?)", "Linux");
+        jdbcTemplate.update("insert into processor (name) values (?)", "x86-64");
+
+        Long typeId = id("programtool_type", "Build");
+        Long languageId = id("program_lang", "Java");
+        Long platformId = id("platform", "Linux");
+        Long processorId = id("processor", "x86-64");
+
+        jdbcTemplate.update("""
+                insert into program_tool
+                    (imagefile_path, name, web_page, fk_gametooltype)
+                values (?, ?, ?, ?)
+                """, "gradle.png", "Gradle", "https://gradle.example", typeId);
+        Long toolId = id("program_tool", "Gradle");
+        jdbcTemplate.update(
+                "insert into tool_lang (program_lang_id, program_tool_id) values (?, ?)",
+                languageId,
+                toolId);
+        jdbcTemplate.update(
+                "insert into tool_platform (fk_idplatform, fk_idtool) values (?, ?)",
+                platformId,
+                toolId);
+        jdbcTemplate.update(
+                "insert into tool_processor (fk_idprocessor, fk_idtool) values (?, ?)",
+                processorId,
+                toolId);
+
+        var result = programmingToolRepository.search(
+                "grad",
+                typeId,
+                languageId,
+                platformId,
+                processorId,
+                PageRequest.of(0, 10, Sort.by("name")));
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent()).singleElement().satisfies(tool -> {
+            assertThat(tool.getName()).isEqualTo("Gradle");
+            assertThat(tool.getToolType().getName()).isEqualTo("Build");
+        });
+    }
+
+    private Long id(String table, String name) {
+        return jdbcTemplate.queryForObject(
+                "select id from " + table + " where name = ?",
+                Long.class,
+                name);
     }
 }

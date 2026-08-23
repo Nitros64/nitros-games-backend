@@ -1,10 +1,15 @@
 package com.nitros64.nitros_games_backend.tooling.domain;
 
-import com.nitros64.nitros_games_backend.shared.domain.Base;
-
 import java.net.URL;
 
-import jakarta.persistence.*;
+import com.nitros64.nitros_games_backend.shared.domain.Base;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -17,7 +22,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @Setter
 @Getter
-//@JsonAutoDetect(fieldVisibility = Visibility.ANY, getterVisibility = Visibility.ANY, setterVisibility = Visibility.ANY)
 public class ProgrammingTool extends Base {
 
     private static final long serialVersionUID = 1L;
@@ -26,43 +30,12 @@ public class ProgrammingTool extends Base {
     private String name;
 
     @Column(nullable = false, unique = true)
-    private URL webPage; //Debe ser la URL del sitio web de la herramienta usada
+    private URL webPage;
 
     @Column(nullable = false, unique = true)
-    private String imagefilePath; //Nota Hay que generar una etiqueta personalizada al recibir los archivos de imagen
+    private String imagefilePath;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "fk_gametooltype")
     private ProgramToolType toolType;
 }
-
-/*
-    CONTROLLER READY
-    SERVICE READY
-    REPOSITORY READY
- */
-
-
-//    public ProgrammingTool() { }
-
-//    public ProgrammingTool(String name) {
-//        this.name = name;
-//    }
-//    
-//    public ProgrammingTool(String name, ProgramToolType toolType) {
-//        this.name = name;
-//        this.toolType = toolType;
-//    }
-//    
-//    public ProgrammingTool(String name, URL webPage, String imagefilePath, ProgramToolType toolType) {
-//        this.name = name;
-//        this.webPage = webPage;
-//        this.imagefilePath = imagefilePath;
-//        this.toolType = toolType;
-//    }
-//
-//    public ProgrammingTool(Long id, String name) {
-//        this.id = id;
-//        this.name = name;
-//    }    
-//}

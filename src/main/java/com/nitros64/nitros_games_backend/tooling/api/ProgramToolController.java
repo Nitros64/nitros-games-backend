@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
@@ -20,10 +22,14 @@ import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolRequest;
 import com.nitros64.nitros_games_backend.tooling.api.dto.ProgrammingToolResponse;
 import com.nitros64.nitros_games_backend.tooling.api.mapper.ProgrammingToolApiMapper;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolService;
+import com.nitros64.nitros_games_backend.tooling.application.ProgrammingToolSearchCriteria;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 @RestController
+@Validated
 @RequestMapping("api/v1/programmingtools")
 public class ProgramToolController {
 
@@ -45,6 +51,25 @@ public class ProgramToolController {
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<ProgrammingToolResponse>> getAll(Pageable pageable) {
         return ResponseEntity.ok(PageResponse.from(service.findAll(pageable), mapper::toResponse));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PageResponse<ProgrammingToolResponse>> search(
+            @RequestParam(required = false) @Size(max = 30) String name,
+            @RequestParam(required = false) @Positive Long toolTypeId,
+            @RequestParam(required = false) @Positive Long languageId,
+            @RequestParam(required = false) @Positive Long platformId,
+            @RequestParam(required = false) @Positive Long processorId,
+            Pageable pageable) {
+        var criteria = new ProgrammingToolSearchCriteria(
+                name,
+                toolTypeId,
+                languageId,
+                platformId,
+                processorId);
+        return ResponseEntity.ok(PageResponse.from(
+                service.search(criteria, pageable),
+                mapper::toResponse));
     }
 
     @GetMapping("/{id}")

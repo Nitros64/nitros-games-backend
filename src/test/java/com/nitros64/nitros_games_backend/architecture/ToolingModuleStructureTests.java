@@ -25,6 +25,7 @@ import com.nitros64.nitros_games_backend.tooling.application.ProgramToolService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolServiceImpl;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeService;
 import com.nitros64.nitros_games_backend.tooling.application.ProgramToolTypeServiceImpl;
+import com.nitros64.nitros_games_backend.tooling.application.ProgrammingToolSearchCriteria;
 import com.nitros64.nitros_games_backend.tooling.application.SaveProgrammingToolCommand;
 import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibility;
 import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibilityService;
@@ -37,12 +38,12 @@ import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatformId;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessorId;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolPlatformDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.IToolProcessorDao;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramLangRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolLangRepo;
-import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
+import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 class ToolingModuleStructureTests {
 
@@ -59,9 +60,9 @@ class ToolingModuleStructureTests {
                 ProgramLangService.class, ProgramLangServiceImpl.class,
                 ProgramToolService.class, ProgramToolServiceImpl.class,
                 ProgramToolTypeService.class, ProgramToolTypeServiceImpl.class,
-                ProgramLangRepository.class, ProgramToolRepository.class,
-                ProgramToolTypeRepository.class, ProgramToolLangRepo.class,
-                IToolPlatformDao.class, IToolProcessorDao.class,
+                ProgrammingLanguageRepository.class, ProgrammingToolRepository.class,
+                ProgramToolTypeRepository.class, LanguageToolRepository.class,
+                ToolPlatformRepository.class, ToolProcessorRepository.class,
                 ProgramLanguageController.class, ProgramToolController.class,
                 ProgramToolTypeController.class,
                 ProgrammingLanguageRequest.class, ProgrammingLanguageResponse.class,
@@ -69,6 +70,7 @@ class ToolingModuleStructureTests {
                 ProgrammingToolRequest.class, ProgrammingToolResponse.class,
                 ProgrammingLanguageApiMapper.class, ProgramToolTypeApiMapper.class,
                 ProgrammingToolApiMapper.class, SaveProgrammingToolCommand.class,
+                ProgrammingToolSearchCriteria.class,
                 ToolCompatibility.class, ToolCompatibilityService.class);
 
         assertThat(toolingTypes)
