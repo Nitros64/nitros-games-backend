@@ -1,40 +1,63 @@
 package com.nitros64.nitros_games_backend.storage.api;
 
-import com.nitros64.nitros_games_backend.shared.api.BaseControllerImpl;
-import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
+import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
-import com.nitros64.nitros_games_backend.storage.application.FileHostImageHandler;
+import com.nitros64.nitros_games_backend.shared.api.PageResponse;
+import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
+import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageNameRequest;
+import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageResponse;
+import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageUploadRequest;
+import com.nitros64.nitros_games_backend.storage.api.mapper.ServerHostImageApiMapper;
 import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
-import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
-/*********************************************************************
- *                      SERVERHOST IMAGE CONTROLLER                  *
- ********************************************************************/
-
-@Validated
 @RestController
-@RequestMapping(path = "api/v1/serverhostimage")
-public class ServerHostImageController extends BaseControllerImpl<ServerHostImage, ServerHostImageService>{
+@RequestMapping("api/v1/serverhostimage")
+public class ServerHostImageController {
 
-     @Autowired
-     private FileHostImageHandler filehosthandler;
+    private final ServerHostImageService service;
+    private final ServerHostImageApiMapper mapper;
 
-     @Override
-     @PostMapping("add") //@Valid
-     public ResponseEntity<?> save(@RequestBody ServerHostImage entity) {
-        var problem = ApiProblem.create(
+    public ServerHostImageController(
+            ServerHostImageService service,
+            ServerHostImageApiMapper mapper) {
+        this.service = service;
+        this.mapper = mapper;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ServerHostImageResponse>> getAll() {
+        return ResponseEntity.ok(service.findAll().stream().map(mapper::toResponse).toList());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<ServerHostImageResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(PageResponse.from(service.findAll(pageable), mapper::toResponse));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ServerHostImageResponse> getOne(@PathVariable Long id) {
+        return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
+    }
+
+    @PostMapping("add")
+    public ResponseEntity<ProblemDetail> saveWithoutFile() {
+        ProblemDetail problem = ApiProblem.create(
                 HttpStatus.FORBIDDEN,
                 "Operation not allowed",
                 "operation_not_allowed",
@@ -43,65 +66,37 @@ public class ServerHostImageController extends BaseControllerImpl<ServerHostImag
         return ResponseEntity.status(problem.getStatus())
                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(problem);
-     }
-
-     //@Secured({"ROLE_ADMIN","ROLE_USER"})//SE DEBE PONER EL PREFIJO "ROLE_"
-     @PostMapping("upload_image")
-     public ResponseEntity<?> upload(@RequestParam("fileHostImage") MultipartFile file, @NoNumberString @NotBlank
-                                     @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-                                     @RequestParam("name") String host_image_name) {
-
-         if (servicio.findByName(host_image_name).isPresent()) {
-             var problem = ApiProblem.create(
-                     HttpStatus.CONFLICT,
-                     "Data conflict",
-                     "data_conflict",
-                     "The request conflicts with existing data",
-                     "/api/v1/serverhostimage/upload_image");
-             return ResponseEntity.status(problem.getStatus())
-                     .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-                     .body(problem);
-         }
-
-         String newfileName = filehosthandler.manage(file);
-         ServerHostImage response = servicio.save(new ServerHostImage(host_image_name,newfileName));
-         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-     @PutMapping(path = "upload_image/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE }, produces = {MediaType.APPLICATION_JSON_VALUE })
-     public ResponseEntity<?> updateImage (@RequestParam(name = "fileHostImage", required = false) MultipartFile file, @PathVariable Long id,
-                                           @NoNumberString(message = "Lalo") @NotBlank @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-                                           @RequestParam("name") String host_image_name) {
-         var problem = ApiProblem.create(
-                 HttpStatus.NOT_ACCEPTABLE,
-                 "Update rejected",
-                 "update_rejected",
-                 "The host image cannot be updated through this operation",
-                 "/api/v1/serverhostimage/upload_image/" + id);
-         return ResponseEntity.status(problem.getStatus())
-                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-                 .body(problem);
-     }
+    @PostMapping(path = "upload_image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ServerHostImageResponse> upload(
+            @Valid @ModelAttribute ServerHostImageUploadRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(mapper.toResponse(service.create(request.name(), request.fileHostImage())));
+    }
 
-     @PutMapping(path = "update_name/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE }, produces = {MediaType.APPLICATION_JSON_VALUE })
-     public ResponseEntity<?> updateName (@PathVariable Long id, @NoNumberString @NotBlank
-                                          @Size(min = 4, max = 30, message="el tamaño tiene que estar entre 4 y 30")
-                                          @RequestParam("name") String host_image_name) {
+    @PutMapping(path = "upload_image/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ServerHostImageResponse> updateImage(
+            @PathVariable Long id,
+            @Valid @ModelAttribute ServerHostImageUploadRequest request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(mapper.toResponse(service.updateImage(
+                        id,
+                        request.name(),
+                        request.fileHostImage())));
+    }
 
-         var entity = this.servicio.findById(id);
+    @PutMapping(path = "update_name/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ServerHostImageResponse> updateName(
+            @PathVariable Long id,
+            @Valid @ModelAttribute ServerHostImageNameRequest request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(mapper.toResponse(service.updateName(id, request.name())));
+    }
 
-         if(entity.getName().equals(host_image_name)){
-             entity.setName(host_image_name);
-             return ResponseEntity.status(HttpStatus.ACCEPTED).body(servicio.save(entity));
-         }
-         var problem = ApiProblem.create(
-                 HttpStatus.IM_USED,
-                 "Update rejected",
-                 "update_rejected",
-                 "The host image name could not be updated",
-                 "/api/v1/serverhostimage/update_name/" + id);
-         return ResponseEntity.status(problem.getStatus())
-                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-                 .body(problem);
-     }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.deleteWithFile(id);
+        return ResponseEntity.noContent().build();
+    }
 }
