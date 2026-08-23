@@ -21,6 +21,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.nitros64.nitros_games_backend.observability.RequestCorrelationFilter;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiProblem;
 import com.nitros64.nitros_games_backend.shared.api.error.ApiProblemWriter;
 
@@ -42,6 +43,7 @@ public class SecurityConfiguration {
                                 .permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/actuator/health", "/actuator/health/**")
                                 .permitAll()
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/**").permitAll()
@@ -64,7 +66,7 @@ public class SecurityConfiguration {
                                         HttpStatus.UNAUTHORIZED,
                                         "Authentication required",
                                         "authentication_required",
-                                        "Authentication is required to modify this resource",
+                                        "Administrator authentication is required",
                                         request.getRequestURI()))))
                 .build();
     }
@@ -91,7 +93,11 @@ public class SecurityConfiguration {
         configuration.setAllowedOrigins(properties.getAllowedOrigins());
         configuration.setAllowedMethods(
                 List.of("GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                RequestCorrelationFilter.REQUEST_ID_HEADER));
+        configuration.setExposedHeaders(List.of(RequestCorrelationFilter.REQUEST_ID_HEADER));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 

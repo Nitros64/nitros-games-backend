@@ -55,16 +55,29 @@ Production validates the existing schema and never creates or updates it.
 
 Optional pool settings are `DB_POOL_MIN_IDLE`, `DB_POOL_MAX_SIZE`,
 `DB_CONNECTION_TIMEOUT_MS` and `DB_VALIDATION_TIMEOUT_MS`.
+`APP_LOG_LEVEL` controls the production root log level and defaults to `INFO`.
 
 The container image and single-host Compose deployment are documented in
 `docs/docker.md`.
 
 ## Health probes
 
-Only the Actuator health endpoint is exposed. `/actuator/health/liveness`
+The Actuator health endpoints are public. `/actuator/health/liveness`
 reports whether the application process should be restarted, while
 `/actuator/health/readiness` also checks the database and reports whether the
 instance should receive traffic. Component details are never returned.
+
+`/actuator/prometheus` exposes JVM, HTTP, database-pool and process metrics in
+Prometheus format. It requires the same administrator authentication used for
+API mutations and must only be scraped over HTTPS in production. Request
+latency histograms are enabled in the production profile.
+
+Production logs are emitted as one Logstash-compatible JSON object per line.
+Every HTTP response includes `X-Request-ID`; a safe identifier supplied by the
+client is preserved, otherwise the application generates a UUID. The same
+value is stored as `requestId` in the logging context, making it possible to
+trace all logs produced while handling a request. Client-provided identifiers
+are restricted to 64 letters, digits, dots, underscores or hyphens.
 
 ## Host-image storage
 

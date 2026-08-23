@@ -24,6 +24,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
+import com.nitros64.nitros_games_backend.observability.RequestCorrelationFilter;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -46,6 +48,39 @@ class NitrosGamesBackendApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("UP"))
 				.andExpect(jsonPath("$.components").doesNotExist());
+	}
+
+	@Test
+	void prometheusMetricsRequireAdministratorAuthentication() throws Exception {
+		mockMvc.perform(get("/actuator/prometheus"))
+				.andExpect(status().isUnauthorized());
+
+		mockMvc.perform(get("/actuator/prometheus")
+					.with(httpBasic("test-admin", "test-admin-password")))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"jvm_memory_used_bytes")));
+	}
+
+	@Test
+	void validClientRequestIdIsReturnedToTheCaller() throws Exception {
+		mockMvc.perform(get("/api/v1/gamegenre")
+					.header(RequestCorrelationFilter.REQUEST_ID_HEADER, "client-request_123"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(
+						RequestCorrelationFilter.REQUEST_ID_HEADER,
+						"client-request_123"));
+	}
+
+	@Test
+	void unsafeClientRequestIdIsReplaced() throws Exception {
+		mockMvc.perform(get("/api/v1/gamegenre")
+					.header(RequestCorrelationFilter.REQUEST_ID_HEADER, "unsafe\nvalue"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(
+						RequestCorrelationFilter.REQUEST_ID_HEADER,
+						org.hamcrest.Matchers.matchesPattern(
+								"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")));
 	}
 
 	@Test

@@ -42,6 +42,13 @@ Verify readiness:
 curl --fail http://localhost:8080/actuator/health/readiness
 ```
 
+Verify the protected Prometheus endpoint with the administrator credentials:
+
+```shell
+curl --fail --user "$APP_SECURITY_ADMIN_USERNAME:$APP_SECURITY_ADMIN_PASSWORD" \
+  http://localhost:8080/actuator/prometheus
+```
+
 The readiness group includes the database connection. The liveness group does
 not include MySQL, preventing an external database outage from causing an
 application restart loop. Health details are never exposed.
@@ -62,7 +69,7 @@ volumes and should only be used when that data is intentionally disposable.
 - `host-images` owns `/var/lib/nitros-games/host-images`.
 - The API waits for the MySQL health check before starting.
 - Flyway applies pending migrations before Hibernate validates the schema.
-- Both services use bounded JSON log rotation.
+- Both services use bounded log rotation; the API emits structured JSON logs.
 - Compose applies memory and process-count limits; the JVM derives its heap from
   the container memory limit.
 - The API receives `SIGTERM` through a minimal init process and has a 30-second
@@ -78,4 +85,5 @@ manager rather than an environment file.
 
 The platform must preserve the host-image path, terminate HTTPS before the API,
 and probe `/actuator/health/liveness` and `/actuator/health/readiness`. Do not
-publish the MySQL port or expose any Actuator endpoint other than health.
+publish the MySQL port. Restrict `/actuator/prometheus` to the monitoring
+system and transmit its administrator credentials only over HTTPS.
