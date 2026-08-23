@@ -1,5 +1,7 @@
 # Nitros Games Backend
 
+[![CI](https://github.com/Nitros64/nitros-games-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Nitros64/nitros-games-backend/actions/workflows/ci.yml)
+
 API REST de `nitrosgames64.com` para administrar juegos, versiones, enlaces de
 descarga, catálogos técnicos, herramientas de programación e imágenes de
 servicios de alojamiento.
@@ -404,6 +406,10 @@ migraciones Flyway, arranca Hibernate contra el esquema MySQL real y comprueba
 consultas de repositorio, incluidas las cargas detalladas y jerárquicas de
 `game`. La suite H2 también controla el número de sentencias de estas consultas
 para detectar regresiones N+1.
+
+GitHub Actions ejecuta en cada `push` y pull request hacia `main` la suite H2,
+la verificación MySQL/Testcontainers y la construcción de la imagen Docker. El
+workflow también puede iniciarse manualmente desde la pestaña Actions.
 
 ## Observabilidad y operación
 
