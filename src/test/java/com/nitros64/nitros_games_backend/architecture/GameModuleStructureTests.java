@@ -18,10 +18,12 @@ import com.nitros64.nitros_games_backend.game.api.dto.GameResponse;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionResponse;
 import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
+import com.nitros64.nitros_games_backend.game.application.DownloadLinkApplicationService;
 import com.nitros64.nitros_games_backend.game.application.DownloadLinkDetails;
 import com.nitros64.nitros_games_backend.game.application.GameApplicationService;
 import com.nitros64.nitros_games_backend.game.application.GameDetails;
 import com.nitros64.nitros_games_backend.game.application.GameSearchCriteria;
+import com.nitros64.nitros_games_backend.game.application.GameVersionApplicationService;
 import com.nitros64.nitros_games_backend.game.application.GameVersionDetails;
 import com.nitros64.nitros_games_backend.game.application.SaveDownloadLinkCommand;
 import com.nitros64.nitros_games_backend.game.application.SaveGameCommand;
@@ -42,7 +44,8 @@ class GameModuleStructureTests {
     void gameComponentsStayInsideTheirVerticalModule() {
         List<Class<?>> gameTypes = List.of(
                 GameData.class, GameVersion.class, DownloadLink.class,
-                GameApplicationService.class,
+                GameApplicationService.class, GameVersionApplicationService.class,
+                DownloadLinkApplicationService.class,
                 SaveGameCommand.class, SaveGameVersionCommand.class,
                 SaveDownloadLinkCommand.class,
                 GameDetails.class, GameVersionDetails.class, DownloadLinkDetails.class,
@@ -81,6 +84,16 @@ class GameModuleStructureTests {
                 .containsExactlyInAnyOrder("findAll", "findOne", "create", "update", "delete");
         assertThat(methodNames(DownloadLinkController.class))
                 .containsExactlyInAnyOrder("findAll", "findOne", "create", "update", "delete");
+    }
+
+    @Test
+    void eachControllerDependsOnItsResourceApplicationService() {
+        assertThat(GameController.class.getDeclaredConstructors()[0].getParameterTypes())
+                .containsExactly(GameApplicationService.class, GameApiMapper.class);
+        assertThat(GameVersionController.class.getDeclaredConstructors()[0].getParameterTypes())
+                .containsExactly(GameVersionApplicationService.class, GameApiMapper.class);
+        assertThat(DownloadLinkController.class.getDeclaredConstructors()[0].getParameterTypes())
+                .containsExactly(DownloadLinkApplicationService.class, GameApiMapper.class);
     }
 
     private List<String> methodNames(Class<?> type) {
