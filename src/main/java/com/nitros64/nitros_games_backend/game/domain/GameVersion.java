@@ -2,7 +2,6 @@ package com.nitros64.nitros_games_backend.game.domain;
 
 import java.util.HashSet;
 import java.util.Set;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -14,22 +13,20 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import com.nitros64.nitros_games_backend.shared.domain.Base;
+import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
 import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 
 @Entity
-@Table(name = "GameVersion")
+@Table(name = "game_version")
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
 @Getter
-public class GameVersion extends Base {
+public class GameVersion extends AbstractEntity {
     private static final long serialVersionUID = 1L;
 
     @Column(nullable = false)
@@ -64,18 +61,26 @@ public class GameVersion extends Base {
     private Long platformId;
 
     @OneToMany(mappedBy = "gameVersion",
-               cascade = CascadeType.ALL,
                fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Set<DownloadLink> downloadLinks = new HashSet<>();
     
-    public void addDownloadLink(DownloadLink downloadLink) {
-        this.downloadLinks.add(downloadLink);
-        downloadLink.setGameVersion(this);
+    public void attachToGame(GameData game) {
+        this.game = game;
     }
 
-    public void removeDownloadLink(DownloadLink downloadLink) {
-        this.downloadLinks.remove(downloadLink);
-        downloadLink.setGameVersion(null);
+    public void updateCompatibility(
+            String name,
+            LanguageTool languageTool,
+            ToolPlatform toolPlatform,
+            ToolProcessor toolProcessor,
+            Long platformId,
+            Long processorId) {
+        this.name = name;
+        this.languageTool = languageTool;
+        this.toolPlatform = toolPlatform;
+        this.toolProcessor = toolProcessor;
+        this.platformId = platformId;
+        this.processorId = processorId;
     }
 }

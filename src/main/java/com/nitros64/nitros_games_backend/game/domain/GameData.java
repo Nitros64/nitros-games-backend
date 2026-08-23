@@ -2,7 +2,7 @@ package com.nitros64.nitros_games_backend.game.domain;
 
 import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
-import com.nitros64.nitros_games_backend.shared.domain.Base;
+import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -18,7 +18,6 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -26,9 +25,8 @@ import org.hibernate.annotations.OnDeleteAction;
 @Table(name = "gamedata")
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
 @Getter
-public class GameData extends Base {
+public class GameData extends AbstractEntity {
     
     private static final long serialVersionUID = 1L;
 
@@ -59,12 +57,18 @@ public class GameData extends Base {
     @JoinColumn(name = "dev_difficulty_id", nullable = false)
     private DevelopmentDifficulty developmentDifficulty;
 
-    public void addVersion(GameVersion version) {
-        this.versions.add(version);
-        version.setGame(this);
-    }
-
-    public void replaceGenres(Set<GameGenre> genres) {
+    public void updateDetails(
+            String name,
+            String description,
+            boolean jam,
+            int developerCount,
+            DevelopmentDifficulty developmentDifficulty,
+            Set<GameGenre> genres) {
+        this.name = name;
+        this.description = description;
+        this.jam = jam;
+        this.developerCount = developerCount;
+        this.developmentDifficulty = developmentDifficulty;
         this.genres.clear();
         this.genres.addAll(genres);
     }

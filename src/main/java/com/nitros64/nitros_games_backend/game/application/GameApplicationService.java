@@ -110,7 +110,7 @@ public class GameApplicationService {
     @Transactional
     public GameVersionDetails createVersion(Long gameId, SaveGameVersionCommand command) {
         var version = new GameVersion();
-        version.setGame(requireGame(gameId));
+        version.attachToGame(requireGame(gameId));
         return toDetails(versions.saveAndFlush(apply(version, command)));
     }
 
@@ -147,7 +147,7 @@ public class GameApplicationService {
             Long versionId,
             SaveDownloadLinkCommand command) {
         var link = new DownloadLink();
-        link.setGameVersion(requireVersion(gameId, versionId));
+        link.attachToVersion(requireVersion(gameId, versionId));
         return toDetails(downloadLinks.saveAndFlush(apply(link, command)));
     }
 
@@ -168,13 +168,14 @@ public class GameApplicationService {
     }
 
     private GameData apply(GameData game, SaveGameCommand command) {
-        game.setName(command.name());
-        game.setDescription(command.description());
-        game.setJam(command.jam());
-        game.setDeveloperCount(command.developerCount());
-        game.setDevelopmentDifficulty(difficulties.findById(command.developmentDifficultyId()));
         var resolvedGenres = new LinkedHashSet<GameGenre>(genres.findAllById(command.genreIds()));
-        game.replaceGenres(resolvedGenres);
+        game.updateDetails(
+                command.name(),
+                command.description(),
+                command.jam(),
+                command.developerCount(),
+                difficulties.findById(command.developmentDifficultyId()),
+                resolvedGenres);
         return game;
     }
 
@@ -184,18 +185,18 @@ public class GameApplicationService {
                 command.programmingToolId(),
                 command.platformId(),
                 command.processorId());
-        version.setName(command.name());
-        version.setLanguageTool(compatibility.languageTool());
-        version.setToolPlatform(compatibility.toolPlatform());
-        version.setToolProcessor(compatibility.toolProcessor());
-        version.setPlatformId(command.platformId());
-        version.setProcessorId(command.processorId());
+        version.updateCompatibility(
+                command.name(),
+                compatibility.languageTool(),
+                compatibility.toolPlatform(),
+                compatibility.toolProcessor(),
+                command.platformId(),
+                command.processorId());
         return version;
     }
 
     private DownloadLink apply(DownloadLink link, SaveDownloadLinkCommand command) {
-        link.setLink(command.link());
-        link.setServerImage(hostImages.findById(command.serverHostImageId()));
+        link.updateDetails(command.link(), hostImages.findById(command.serverHostImageId()));
         return link;
     }
 

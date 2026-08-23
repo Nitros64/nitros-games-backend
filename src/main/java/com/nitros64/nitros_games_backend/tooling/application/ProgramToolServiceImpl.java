@@ -82,10 +82,11 @@ public class ProgramToolServiceImpl implements ProgramToolService {
     @Transactional
     public ProgrammingTool updateFromCommand(Long id, SaveProgrammingToolCommand command) {
         ProgrammingTool entity = findById(id);
-        entity.setName(command.name());
-        entity.setWebPage(command.webPage());
-        entity.setImagefilePath(command.imagefilePath());
-        entity.setToolType(toolTypes.findById(command.toolTypeId()));
+        entity.updateDetails(
+                command.name(),
+                command.webPage(),
+                command.imagefilePath(),
+                toolTypes.findById(command.toolTypeId()));
         return tools.save(entity);
     }
 

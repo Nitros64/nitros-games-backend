@@ -54,7 +54,7 @@ public class PlatformService {
     @Transactional
     public Platform update(Long id, Platform platform) {
         Platform existing = findById(id);
-        existing.setName(platform.getName());
+        existing.rename(platform.getName());
         return platforms.save(existing);
     }
 

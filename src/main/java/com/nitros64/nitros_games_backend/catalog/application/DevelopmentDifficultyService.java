@@ -54,7 +54,7 @@ public class DevelopmentDifficultyService {
     @Transactional
     public DevelopmentDifficulty update(Long id, DevelopmentDifficulty difficulty) {
         DevelopmentDifficulty existing = findById(id);
-        existing.setName(difficulty.getName());
+        existing.rename(difficulty.getName());
         return difficulties.save(existing);
     }
 

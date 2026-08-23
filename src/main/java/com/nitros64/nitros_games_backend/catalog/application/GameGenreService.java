@@ -67,7 +67,7 @@ public class GameGenreService {
     @Transactional
     public GameGenre update(Long id, GameGenre genre) {
         GameGenre existing = findById(id);
-        existing.setName(genre.getName());
+        existing.rename(genre.getName());
         return genres.save(existing);
     }
 

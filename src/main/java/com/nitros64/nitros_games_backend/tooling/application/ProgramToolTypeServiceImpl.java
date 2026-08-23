@@ -77,7 +77,7 @@ public class ProgramToolTypeServiceImpl implements ProgramToolTypeService {
     @Transactional
     public ProgramToolType update(Long id, ProgramToolType type) {
         ProgramToolType existing = findById(id);
-        existing.setName(type.getName());
+        existing.rename(type.getName());
         return toolTypes.save(existing);
     }
 
