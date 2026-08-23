@@ -4,13 +4,13 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.nitros64.nitros_games_backend.game.domain.DownloadLink;
-import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
-public interface DownloadLinkRepository extends BaseRepository<DownloadLink, Long> {
+public interface DownloadLinkRepository extends JpaRepository<DownloadLink, Long> {
 
     @EntityGraph(attributePaths = {"gameVersion", "serverImage"})
     List<DownloadLink> findAllByGameVersionIdOrderById(Long gameVersionId);
