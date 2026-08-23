@@ -169,6 +169,52 @@ class GameApiContractTests {
     }
 
     @Test
+    void gamesCanBeSearchedWithCombinedFiltersAndBoundedPagination() throws Exception {
+        createGame("Nitro Game").andExpect(status().isCreated());
+        var advanced = difficultyRepository.saveAndFlush(
+                new DevelopmentDifficulty("Advanced"));
+        var strategy = genreRepository.saveAndFlush(new GameGenre("Strategy"));
+        mvc.perform(post("/api/v1/games").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Jam Project","description":"Built at a jam","jam":true,
+                                 "developerCount":4,"developmentDifficultyId":%d,"genreIds":[%d]}
+                                """.formatted(advanced.getId(), strategy.getId())))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/v1/games/search")
+                        .param("name", "PROJECT")
+                        .param("developmentDifficultyId", advanced.getId().toString())
+                        .param("genreId", strategy.getId().toString())
+                        .param("jam", "true")
+                        .param("page", "0")
+                        .param("size", "500")
+                        .param("sort", "name,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Jam Project"))
+                .andExpect(jsonPath("$.content[0].developmentDifficultyId")
+                        .value(advanced.getId()))
+                .andExpect(jsonPath("$.content[0].genreIds[0]").value(strategy.getId()))
+                .andExpect(jsonPath("$.content[0].jam").value(true))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.size").value(100));
+
+        mvc.perform(get("/api/v1/games/search").param("genreId", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.errors[0].field").value("genreId"));
+
+        mvc.perform(get("/api/v1/games/search")
+                        .param("page", "5")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.number").value(5));
+    }
+
+    @Test
     void invalidCompatibilityDoesNotCreateVersion() throws Exception {
         createGame("Nitro Game").andExpect(status().isCreated());
         var game = gameRepository.findAll().getFirst();

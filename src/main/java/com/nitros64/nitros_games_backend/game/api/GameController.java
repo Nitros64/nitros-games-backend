@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nitros64.nitros_games_backend.game.api.dto.DownloadLinkRequest;
@@ -23,11 +25,15 @@ import com.nitros64.nitros_games_backend.game.api.dto.GameVersionRequest;
 import com.nitros64.nitros_games_backend.game.api.dto.GameVersionResponse;
 import com.nitros64.nitros_games_backend.game.api.mapper.GameApiMapper;
 import com.nitros64.nitros_games_backend.game.application.GameApplicationService;
+import com.nitros64.nitros_games_backend.game.application.GameSearchCriteria;
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 @RestController
+@Validated
 @RequestMapping("/api/v1/games")
 public class GameController {
 
@@ -47,6 +53,23 @@ public class GameController {
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<GameResponse>> findAll(Pageable pageable) {
         return ResponseEntity.ok(PageResponse.from(service.findAllGames(pageable), mapper::toResponse));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PageResponse<GameResponse>> search(
+            @RequestParam(required = false) @Size(max = 30) String name,
+            @RequestParam(required = false) @Positive Long developmentDifficultyId,
+            @RequestParam(required = false) @Positive Long genreId,
+            @RequestParam(required = false) Boolean jam,
+            Pageable pageable) {
+        var criteria = new GameSearchCriteria(
+                name,
+                developmentDifficultyId,
+                genreId,
+                jam);
+        return ResponseEntity.ok(PageResponse.from(
+                service.searchGames(criteria, pageable),
+                mapper::toResponse));
     }
 
     @GetMapping("/{gameId}")

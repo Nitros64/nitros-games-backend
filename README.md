@@ -126,6 +126,8 @@ Recursos principales:
 Los catálogos y el módulo `tooling` permiten búsquedas paginadas por nombre:
 
 ```text
+GET /api/v1/games/search?name=nitro&developmentDifficultyId=1
+    &genreId=1&jam=false&page=0&size=20&sort=name,asc
 GET /api/v1/gamegenre/search?name=strategy&page=0&size=20
 GET /api/v1/developmentdifficulty/search?name=advanced&page=0&size=20
 GET /api/v1/platform/search?name=windows&page=0&size=20
@@ -136,7 +138,7 @@ GET /api/v1/programmingtools/search?name=gradle&toolTypeId=1
     &languageId=1&platformId=1&processorId=1&page=0&size=20&sort=name,asc
 ```
 
-Todos los filtros de herramientas son opcionales y combinables. El servidor
+Los filtros de juegos y herramientas son opcionales y combinables. El servidor
 limita cualquier página solicitada a 100 elementos.
 
 ## Base de datos

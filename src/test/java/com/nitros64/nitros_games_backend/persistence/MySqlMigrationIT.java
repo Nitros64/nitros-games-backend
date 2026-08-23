@@ -23,6 +23,7 @@ import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficul
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
+import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 
 @Testcontainers
@@ -61,6 +62,9 @@ class MySqlMigrationIT {
 
     @Autowired
     private ProcessorRepository processorRepository;
+
+    @Autowired
+    private GameDataRepository gameDataRepository;
 
     @Autowired
     private ProgrammingToolRepository programmingToolRepository;
@@ -169,6 +173,41 @@ class MySqlMigrationIT {
                 .singleElement()
                 .extracting(Processor::getName)
                 .isEqualTo("ARM64");
+    }
+
+    @Test
+    void gameSearchRunsAgainstMySqlWithCombinedFiltersAndDetailedLoading() {
+        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Advanced");
+        jdbcTemplate.update("insert into game_genres (name) values (?)", "Strategy");
+        Long difficultyId = id("dev_difficulty", "Advanced");
+        Long genreId = id("game_genres", "Strategy");
+        jdbcTemplate.update("""
+                insert into gamedata
+                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
+                values (?, ?, ?, ?, ?)
+                """, "Built at a jam", 4, true, "Jam Project", difficultyId);
+        Long gameId = id("gamedata", "Jam Project");
+        jdbcTemplate.update(
+                "insert into mygames_genres (mygame_id, genre_id) values (?, ?)",
+                gameId,
+                genreId);
+
+        var ids = gameDataRepository.searchIds(
+                "PROJECT",
+                difficultyId,
+                genreId,
+                true,
+                PageRequest.of(0, 10, Sort.by("name")));
+        var games = gameDataRepository.findDetailedByIdIn(ids.getContent());
+
+        assertThat(ids.getTotalElements()).isEqualTo(1);
+        assertThat(games).singleElement().satisfies(game -> {
+            assertThat(game.getName()).isEqualTo("Jam Project");
+            assertThat(game.getDevelopmentDifficulty().getName()).isEqualTo("Advanced");
+            assertThat(game.getGenres()).singleElement()
+                    .extracting(GameGenre::getName)
+                    .isEqualTo("Strategy");
+        });
     }
 
     private Long id(String table, String name) {

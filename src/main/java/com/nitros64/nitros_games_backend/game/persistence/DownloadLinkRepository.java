@@ -1,11 +1,31 @@
 package com.nitros64.nitros_games_backend.game.persistence;
 
-import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.nitros64.nitros_games_backend.game.domain.DownloadLink;
 import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
-@Repository
 public interface DownloadLinkRepository extends BaseRepository<DownloadLink, Long> {
-    java.util.List<DownloadLink> findAllByGameVersionIdOrderById(Long gameVersionId);
+
+    @EntityGraph(attributePaths = {"gameVersion", "serverImage"})
+    List<DownloadLink> findAllByGameVersionIdOrderById(Long gameVersionId);
+
+    @Query("""
+            select link
+            from DownloadLink link
+            join fetch link.gameVersion version
+            join fetch link.serverImage
+            where link.id = :id
+              and version.id = :gameVersionId
+              and version.game.id = :gameId
+            """)
+    Optional<DownloadLink> findDetailedByIdAndHierarchy(
+            @Param("id") Long id,
+            @Param("gameVersionId") Long gameVersionId,
+            @Param("gameId") Long gameId);
 }
