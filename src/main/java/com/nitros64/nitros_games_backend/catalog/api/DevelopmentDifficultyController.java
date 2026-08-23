@@ -21,10 +21,12 @@ import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyRe
 import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyResponse;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.DevelopmentDifficultyApiMapper;
 import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
+import com.nitros64.nitros_games_backend.shared.api.ApiResponse;
 import com.nitros64.nitros_games_backend.shared.api.PageResponse;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 @RestController
@@ -62,15 +64,18 @@ public class DevelopmentDifficultyController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DevelopmentDifficultyResponse> getOne(@PathVariable Long id) {
+    public ResponseEntity<DevelopmentDifficultyResponse> getOne(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
     @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DevelopmentDifficultyResponse> save(
             @Valid @RequestBody DevelopmentDifficultyRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mapper.toResponse(service.save(mapper.toEntity(request))));
+        var response = mapper.toResponse(service.save(mapper.toEntity(request)));
+        return ApiResponse.created(
+                response,
+                "/api/v1/developmentdifficulty/{id}",
+                response.id());
     }
 
     @PostMapping("addAll")
@@ -83,14 +88,13 @@ public class DevelopmentDifficultyController {
 
     @PutMapping("/{id}")
     public ResponseEntity<DevelopmentDifficultyResponse> update(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody DevelopmentDifficultyRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(mapper.toResponse(service.update(id, mapper.toEntity(request))));
+        return ResponseEntity.ok(mapper.toResponse(service.update(id, mapper.toEntity(request))));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @Positive Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

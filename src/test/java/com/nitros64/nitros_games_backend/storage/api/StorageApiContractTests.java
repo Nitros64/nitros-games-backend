@@ -8,8 +8,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -70,6 +72,9 @@ class StorageApiContractTests {
                     .param("name", "MediaFire")
                     .with(admin()))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost/api/v1/serverhostimage/[0-9]+")))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value("MediaFire"))
                 .andExpect(jsonPath("$.imagepath").isString())
@@ -86,7 +91,7 @@ class StorageApiContractTests {
                         request.setMethod("PUT");
                         return request;
                     }))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.longValue()))
                 .andExpect(jsonPath("$.name").value("Dropbox"))
                 .andExpect(jsonPath("$.imagepath").value(originalFilename));
@@ -100,7 +105,7 @@ class StorageApiContractTests {
                         request.setMethod("PUT");
                         return request;
                     }))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.longValue()))
                 .andExpect(jsonPath("$.name").value("Dropbox"))
                 .andExpect(jsonPath("$.imagepath").isString())

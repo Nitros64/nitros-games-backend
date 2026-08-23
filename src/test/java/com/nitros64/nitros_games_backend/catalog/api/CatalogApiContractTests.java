@@ -6,8 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import java.util.stream.Stream;
 
@@ -76,6 +78,9 @@ class CatalogApiContractTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(initialName)))
                 .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        matchesPattern("http://localhost" + basePath + "/[0-9]+")))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value(initialName))
@@ -93,7 +98,7 @@ class CatalogApiContractTests {
                     .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(updatedName)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.longValue()))
                 .andExpect(jsonPath("$.name").value(updatedName))
                 .andExpect(jsonPath("$.length()").value(2));
