@@ -6,13 +6,13 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 
-public interface ProgrammingToolRepository extends BaseRepository<ProgrammingTool, Long> {
+public interface ProgrammingToolRepository extends JpaRepository<ProgrammingTool, Long> {
 
     @EntityGraph(attributePaths = "toolType")
     @Query("select tool from ProgrammingTool tool where tool.id = :id")

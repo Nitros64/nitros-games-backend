@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.nitros64.nitros_games_backend.game.domain.GameVersion;
-import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 
-public interface GameVersionRepository extends BaseRepository<GameVersion, Long> {
+public interface GameVersionRepository extends JpaRepository<GameVersion, Long> {
 
     @EntityGraph(attributePaths = {
             "languageTool.programmingLanguage",

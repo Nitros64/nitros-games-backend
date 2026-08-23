@@ -13,7 +13,6 @@ import com.nitros64.nitros_games_backend.shared.api.error.ApiValidationViolation
 import com.nitros64.nitros_games_backend.shared.api.error.RestExceptionHandler;
 import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
 import com.nitros64.nitros_games_backend.shared.domain.Base;
-import com.nitros64.nitros_games_backend.shared.persistence.BaseRepository;
 import com.nitros64.nitros_games_backend.shared.validation.NoNumberString;
 import com.nitros64.nitros_games_backend.shared.validation.NoNumberValidator;
 
@@ -22,7 +21,7 @@ class SharedKernelStructureTests {
     @Test
     void commonAbstractionsStayInsideTheSharedKernel() {
         assertThat(List.of(
-                Base.class, BaseRepository.class,
+                Base.class,
                 ResourceNotFoundException.class,
                 PageResponse.class,
                 ApiProblem.class, ApiProblemWriter.class,
