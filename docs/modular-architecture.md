@@ -100,6 +100,13 @@ filesystem adapter uses an externally configured root, generates server-side
 filenames, confines every operation to that root, validates size and image
 signature, and publishes uploads with an atomic move.
 
+The storage API exposes DTOs rather than `ServerHostImage` entities. Multipart
+field names remain `fileHostImage` and `name`. Creation, image replacement and
+deletion are coordinated with database transactions: rollback removes newly
+written files, while successful commit removes superseded or deleted files.
+Clients cannot create metadata or set `imagepath` without using the file
+operations.
+
 ## Security module
 
 `security` centralizes authentication, route authorization and CORS instead of
