@@ -31,7 +31,7 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @Validated
-@RequestMapping("api/v1/platform")
+@RequestMapping({"/api/v1/platforms", "/api/v1/platform"})
 public class PlatformController {
 
     private final PlatformService service;
@@ -66,13 +66,13 @@ public class PlatformController {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
-    @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = {"", "/add"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PlatformResponse> save(@Valid @RequestBody PlatformRequest request) {
         var response = mapper.toResponse(service.save(mapper.toEntity(request)));
-        return ApiResponse.created(response, "/api/v1/platform/{id}", response.id());
+        return ApiResponse.created(response, "/api/v1/platforms/{id}", response.id());
     }
 
-    @PostMapping("addAll")
+    @PostMapping({"/batch", "/addAll"})
     public ResponseEntity<List<PlatformResponse>> saveAll(
             @RequestBody List<@Valid PlatformRequest> requests) {
         var entities = requests.stream().map(mapper::toEntity).toList();

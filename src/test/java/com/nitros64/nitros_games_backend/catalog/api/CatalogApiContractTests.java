@@ -73,7 +73,7 @@ class CatalogApiContractTests {
             String bulkNameTwo) throws Exception {
         String basePath = "/api/v1/" + resource;
 
-        String createdJson = mockMvc.perform(post(basePath + "/add")
+        String createdJson = mockMvc.perform(post(basePath)
                     .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(initialName)))
@@ -103,7 +103,7 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.name").value(updatedName))
                 .andExpect(jsonPath("$.length()").value(2));
 
-        mockMvc.perform(post(basePath + "/addAll")
+        mockMvc.perform(post(basePath + "/batch")
                     .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("[" + json(bulkNameOne) + "," + json(bulkNameTwo) + "]"))
@@ -153,7 +153,7 @@ class CatalogApiContractTests {
     @ParameterizedTest(name = "{0} validates its request DTO")
     @MethodSource("catalogValidationCases")
     void requestDtoOwnsValidation(String resource, String invalidName) throws Exception {
-        mockMvc.perform(post("/api/v1/" + resource + "/add")
+        mockMvc.perform(post("/api/v1/" + resource)
                     .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(invalidName)))
@@ -173,23 +173,38 @@ class CatalogApiContractTests {
                 .andExpect(jsonPath("$.errors[0].field").value("name"));
     }
 
+    @ParameterizedTest(name = "legacy catalog route {0} remains available")
+    @MethodSource("legacyCatalogResources")
+    void legacyRoutesRemainAvailable(String resource) throws Exception {
+        mockMvc.perform(get("/api/v1/" + resource))
+                .andExpect(status().isOk());
+    }
+
     private static Stream<Arguments> catalogResources() {
         return Stream.of(
-                Arguments.of("gamegenre", "Adventure", "Strategy", "Puzzle", "Simulation"),
-                Arguments.of("platform", "Windows", "Linux", "Arcade", "Console"),
-                Arguments.of("processor", "Z80", "M68000", "ARM64", "RISC-V"),
-                Arguments.of("developmentdifficulty", "Medium", "Advanced", "Beginner", "Expert"));
+                Arguments.of("game-genres", "Adventure", "Strategy", "Puzzle", "Simulation"),
+                Arguments.of("platforms", "Windows", "Linux", "Arcade", "Console"),
+                Arguments.of("processors", "Z80", "M68000", "ARM64", "RISC-V"),
+                Arguments.of("development-difficulties", "Medium", "Advanced", "Beginner", "Expert"));
     }
 
     private static Stream<Arguments> catalogValidationCases() {
         return Stream.of(
-                Arguments.of("gamegenre", "Genre2"),
-                Arguments.of("platform", "Platform2"),
-                Arguments.of("processor", "ProcessorNameTooLong"),
-                Arguments.of("developmentdifficulty", "Level2"));
+                Arguments.of("game-genres", "Genre2"),
+                Arguments.of("platforms", "Platform2"),
+                Arguments.of("processors", "ProcessorNameTooLong"),
+                Arguments.of("development-difficulties", "Level2"));
     }
 
     private static Stream<Arguments> catalogSearchResources() {
+        return Stream.of(
+                Arguments.of("game-genres"),
+                Arguments.of("platforms"),
+                Arguments.of("processors"),
+                Arguments.of("development-difficulties"));
+    }
+
+    private static Stream<Arguments> legacyCatalogResources() {
         return Stream.of(
                 Arguments.of("gamegenre"),
                 Arguments.of("platform"),

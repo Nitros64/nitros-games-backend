@@ -31,7 +31,7 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @Validated
-@RequestMapping("api/v1/programmingtools")
+@RequestMapping({"/api/v1/programming-tools", "/api/v1/programmingtools"})
 public class ProgramToolController {
 
     private final ProgramToolService service;
@@ -78,14 +78,14 @@ public class ProgramToolController {
         return ResponseEntity.ok(mapper.toResponse(service.findById(id)));
     }
 
-    @PostMapping(path = "add", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = {"", "/add"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProgrammingToolResponse> save(
             @Valid @RequestBody ProgrammingToolRequest request) {
         var response = mapper.toResponse(service.create(mapper.toCommand(request)));
-        return ApiResponse.created(response, "/api/v1/programmingtools/{id}", response.id());
+        return ApiResponse.created(response, "/api/v1/programming-tools/{id}", response.id());
     }
 
-    @PostMapping("addAll")
+    @PostMapping({"/batch", "/addAll"})
     public ResponseEntity<List<ProgrammingToolResponse>> saveAll(
             @RequestBody List<@Valid ProgrammingToolRequest> requests) {
         var commands = requests.stream().map(mapper::toCommand).toList();
