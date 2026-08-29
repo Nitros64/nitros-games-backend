@@ -13,13 +13,14 @@ public class GameApiMapper {
     public SaveGameCommand toCommand(GameRequest request) {
         return new SaveGameCommand(
                 request.name(), request.description(), request.jam(), request.developerCount(),
-                request.developmentDifficultyId(), request.genreIds());
+                request.genreIds());
     }
 
     public GameResponse toResponse(GameDetails details) {
         return new GameResponse(
                 details.id(), details.name(), details.description(), details.jam(),
-                details.developerCount(), details.developmentDifficultyId(), details.genreIds());
+                details.developerCount(), 
+                details.genreIds());
     }
 
 }

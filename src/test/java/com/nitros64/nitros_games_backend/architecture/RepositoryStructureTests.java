@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
@@ -27,7 +26,6 @@ class RepositoryStructureTests {
     @Test
     void repositoriesDeclareTheirSpringDataContractDirectly() {
         Stream.of(
-                DevelopmentDifficultyRepository.class,
                 GameGenreRepository.class,
                 PlatformRepository.class,
                 ProcessorRepository.class,

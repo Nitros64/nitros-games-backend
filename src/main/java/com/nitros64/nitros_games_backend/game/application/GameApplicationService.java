@@ -11,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.game.domain.GameData;
@@ -22,15 +21,12 @@ import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundExce
 public class GameApplicationService {
 
     private final GameDataRepository games;
-    private final DevelopmentDifficultyService difficulties;
     private final GameGenreService genres;
 
     public GameApplicationService(
             GameDataRepository games,
-            DevelopmentDifficultyService difficulties,
             GameGenreService genres) {
         this.games = games;
-        this.difficulties = difficulties;
         this.genres = genres;
     }
 
@@ -48,7 +44,6 @@ public class GameApplicationService {
     public Page<GameDetails> searchGames(GameSearchCriteria criteria, Pageable pageable) {
         return hydrate(games.searchIds(
                 criteria.name(),
-                criteria.developmentDifficultyId(),
                 criteria.genreId(),
                 criteria.jam(),
                 pageable), pageable);
@@ -83,7 +78,6 @@ public class GameApplicationService {
                 command.description(),
                 command.jam(),
                 command.developerCount(),
-                difficulties.findById(command.developmentDifficultyId()),
                 resolvedGenres);
         return game;
     }
@@ -113,7 +107,6 @@ public class GameApplicationService {
                 game.getDescription(),
                 game.isJam(),
                 game.getDeveloperCount(),
-                game.getDevelopmentDifficulty().getId(),
                 game.getGenres().stream()
                         .map(GameGenre::getId)
                         .collect(Collectors.toCollection(LinkedHashSet::new)));

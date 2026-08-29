@@ -1,6 +1,5 @@
 package com.nitros64.nitros_games_backend.game.domain;
 
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 
@@ -12,7 +11,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -52,23 +50,17 @@ public class GameData extends AbstractEntity {
             joinColumns = @JoinColumn(name = "mygame_id"),
             inverseJoinColumns = @JoinColumn(name = "genre_id"))
     private Set<GameGenre> genres = new HashSet<>();
-    
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "dev_difficulty_id", nullable = false)
-    private DevelopmentDifficulty developmentDifficulty;
 
     public void updateDetails(
             String name,
             String description,
             boolean jam,
             int developerCount,
-            DevelopmentDifficulty developmentDifficulty,
             Set<GameGenre> genres) {
         this.name = name;
         this.description = description;
         this.jam = jam;
         this.developerCount = developerCount;
-        this.developmentDifficulty = developmentDifficulty;
         this.genres.clear();
         this.genres.addAll(genres);
     }

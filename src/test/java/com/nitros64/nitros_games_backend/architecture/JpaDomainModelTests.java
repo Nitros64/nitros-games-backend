@@ -8,7 +8,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.game.domain.DownloadLink;
 import com.nitros64.nitros_games_backend.game.domain.GameData;
@@ -29,7 +28,6 @@ class JpaDomainModelTests {
     @Test
     void entityMappingsUseTheFlywayTableNames() {
         Map<Class<?>, String> expectedTables = Map.of(
-                DevelopmentDifficulty.class, "dev_difficulty",
                 GameGenre.class, "game_genres",
                 GameVersion.class, "game_version",
                 DownloadLink.class, "download_link");
@@ -57,7 +55,6 @@ class JpaDomainModelTests {
     @Test
     void persistentEntitiesExposeDomainOperationsInsteadOfGenericSetters() {
         assertThat(Arrays.asList(
-                DevelopmentDifficulty.class,
                 GameGenre.class,
                 GameData.class,
                 GameVersion.class,

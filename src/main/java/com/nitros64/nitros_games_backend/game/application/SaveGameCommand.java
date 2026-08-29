@@ -7,6 +7,5 @@ public record SaveGameCommand(
         String description,
         boolean jam,
         int developerCount,
-        Long developmentDifficultyId,
         Set<Long> genreIds) {
 }

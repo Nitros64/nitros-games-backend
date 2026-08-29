@@ -24,11 +24,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
@@ -57,7 +55,6 @@ class GameApiContractTests {
 
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
-    @Autowired DevelopmentDifficultyRepository difficultyRepository;
     @Autowired GameGenreRepository genreRepository;
     @Autowired PlatformRepository platformRepository;
     @Autowired ProcessorRepository processorRepository;
@@ -72,7 +69,6 @@ class GameApiContractTests {
     @Autowired GameVersionRepository versionRepository;
     @Autowired DownloadLinkRepository downloadLinkRepository;
 
-    private DevelopmentDifficulty difficulty;
     private GameGenre genre;
     private Platform platform;
     private Processor processor;
@@ -83,7 +79,6 @@ class GameApiContractTests {
     @BeforeEach
     void prepareCompatibleCatalog() throws Exception {
         clearDatabase();
-        difficulty = difficultyRepository.saveAndFlush(new DevelopmentDifficulty("Medium"));
         genre = genreRepository.saveAndFlush(new GameGenre("Adventure"));
         platform = platformRepository.saveAndFlush(new Platform("Windows"));
         processor = processorRepository.saveAndFlush(new Processor("x86-64"));
@@ -109,7 +104,6 @@ class GameApiContractTests {
                         "Location",
                         matchesPattern("http://localhost/api/v1/games/[0-9]+")))
                 .andExpect(jsonPath("$.description").value("Great game"))
-                .andExpect(jsonPath("$.developmentDifficultyId").value(difficulty.getId()))
                 .andExpect(jsonPath("$.genreIds.length()").value(1));
         var game = gameRepository.findAll().getFirst();
 
@@ -171,13 +165,6 @@ class GameApiContractTests {
     }
 
     @Test
-    void developmentDifficultyCanBeSharedBySeveralGames() throws Exception {
-        createGame("First Game").andExpect(status().isCreated());
-        createGame("Second Game").andExpect(status().isCreated());
-        assertThat(gameRepository.count()).isEqualTo(2);
-    }
-
-    @Test
     void pathIdentifiersMustBePositive() throws Exception {
         mvc.perform(get("/api/v1/games/0"))
                 .andExpect(status().isBadRequest())
@@ -187,20 +174,18 @@ class GameApiContractTests {
     @Test
     void gamesCanBeSearchedWithCombinedFiltersAndBoundedPagination() throws Exception {
         createGame("Nitro Game").andExpect(status().isCreated());
-        var advanced = difficultyRepository.saveAndFlush(
-                new DevelopmentDifficulty("Advanced"));
+        
         var strategy = genreRepository.saveAndFlush(new GameGenre("Strategy"));
         mvc.perform(post("/api/v1/games").with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Jam Project","description":"Built at a jam","jam":true,
-                                 "developerCount":4,"developmentDifficultyId":%d,"genreIds":[%d]}
-                                """.formatted(advanced.getId(), strategy.getId())))
+                                 "developerCount":4,"genreIds":[%d]}
+                                """.formatted(strategy.getId())))
                 .andExpect(status().isCreated());
 
         mvc.perform(get("/api/v1/games/search")
                         .param("name", "PROJECT")
-                        .param("developmentDifficultyId", advanced.getId().toString())
                         .param("genreId", strategy.getId().toString())
                         .param("jam", "true")
                         .param("page", "0")
@@ -209,8 +194,6 @@ class GameApiContractTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("Jam Project"))
-                .andExpect(jsonPath("$.content[0].developmentDifficultyId")
-                        .value(advanced.getId()))
                 .andExpect(jsonPath("$.content[0].genreIds[0]").value(strategy.getId()))
                 .andExpect(jsonPath("$.content[0].jam").value(true))
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -327,7 +310,7 @@ class GameApiContractTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"x","description":"","jam":false,"developerCount":0,
-                                 "developmentDifficultyId":null,"genreIds":[]}
+                                 "genreIds":[]}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"));
@@ -342,9 +325,8 @@ class GameApiContractTests {
 
     private String gameJson(String name) {
         return """
-                {"name":"%s","description":"Great game","jam":false,"developerCount":2,
-                 "developmentDifficultyId":%d,"genreIds":[%d]}
-                """.formatted(name, difficulty.getId(), genre.getId());
+                {"name":"%s","description":"Great game","jam":false,"developerCount":2,"genreIds":[%d]}
+                """.formatted(name, genre.getId());
     }
 
     private String versionJson(String name, Long platformId) {
@@ -379,6 +361,5 @@ class GameApiContractTests {
         jdbc.update("delete from processor");
         jdbc.update("delete from server_hostimage");
         jdbc.update("delete from game_genres");
-        jdbc.update("delete from dev_difficulty");
     }
 }

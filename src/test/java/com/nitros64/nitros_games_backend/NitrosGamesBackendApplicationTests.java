@@ -39,7 +39,7 @@ class NitrosGamesBackendApplicationTests {
 
 	@Test
 	void contextLoads() {
-		assertEquals(14, entityManagerFactory.getMetamodel().getEntities().size());
+		assertEquals(13, entityManagerFactory.getMetamodel().getEntities().size());
 	}
 
 	@Test

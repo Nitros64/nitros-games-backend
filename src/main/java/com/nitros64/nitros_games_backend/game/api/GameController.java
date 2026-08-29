@@ -54,13 +54,11 @@ public class GameController {
     @GetMapping("/search")
     public ResponseEntity<PageResponse<GameResponse>> search(
             @RequestParam(required = false) @Size(max = 30) String name,
-            @RequestParam(required = false) @Positive Long developmentDifficultyId,
             @RequestParam(required = false) @Positive Long genreId,
             @RequestParam(required = false) Boolean jam,
             Pageable pageable) {
         var criteria = new GameSearchCriteria(
                 name,
-                developmentDifficultyId,
                 genreId,
                 jam);
         return ResponseEntity.ok(PageResponse.from(

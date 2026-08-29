@@ -8,6 +8,5 @@ public record GameDetails(
         String description,
         boolean jam,
         int developerCount,
-        Long developmentDifficultyId,
         Set<Long> genreIds) {
 }

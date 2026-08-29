@@ -16,11 +16,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;
 
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
@@ -61,9 +59,6 @@ class MySqlMigrationIT {
 
     @Autowired
     private GameGenreRepository genreRepository;
-
-    @Autowired
-    private DevelopmentDifficultyRepository difficultyRepository;
 
     @Autowired
     private PlatformRepository platformRepository;
@@ -171,7 +166,6 @@ class MySqlMigrationIT {
     @Test
     void catalogNameSearchesRunAgainstMySqlCaseInsensitively() {
         genreRepository.saveAndFlush(new GameGenre("Strategy"));
-        difficultyRepository.saveAndFlush(new DevelopmentDifficulty("Advanced"));
         platformRepository.saveAndFlush(new Platform("Windows"));
         processorRepository.saveAndFlush(new Processor("ARM64"));
 
@@ -181,10 +175,6 @@ class MySqlMigrationIT {
                 .singleElement()
                 .extracting(GameGenre::getName)
                 .isEqualTo("Strategy");
-        assertThat(difficultyRepository.findByNameContainingIgnoreCase("DVANC", page).getContent())
-                .singleElement()
-                .extracting(DevelopmentDifficulty::getName)
-                .isEqualTo("Advanced");
         assertThat(platformRepository.findByNameContainingIgnoreCase("INDOW", page).getContent())
                 .singleElement()
                 .extracting(Platform::getName)
@@ -214,7 +204,6 @@ class MySqlMigrationIT {
 
         var ids = gameDataRepository.searchIds(
                 "PROJECT",
-                difficultyId,
                 genreId,
                 true,
                 PageRequest.of(0, 10, Sort.by("name")));
@@ -223,7 +212,6 @@ class MySqlMigrationIT {
         assertThat(ids.getTotalElements()).isEqualTo(1);
         assertThat(games).singleElement().satisfies(game -> {
             assertThat(game.getName()).isEqualTo("Jam Project");
-            assertThat(game.getDevelopmentDifficulty().getName()).isEqualTo("Advanced");
             assertThat(game.getGenres()).singleElement()
                     .extracting(GameGenre::getName)
                     .isEqualTo("Strategy");

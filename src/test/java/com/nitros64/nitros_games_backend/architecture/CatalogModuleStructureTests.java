@@ -7,31 +7,24 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.nitros64.nitros_games_backend.catalog.application.DevelopmentDifficultyService;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.application.PlatformService;
 import com.nitros64.nitros_games_backend.catalog.application.ProcessorService;
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
-import com.nitros64.nitros_games_backend.catalog.api.DevelopmentDifficultyController;
 import com.nitros64.nitros_games_backend.catalog.api.GameGenreController;
 import com.nitros64.nitros_games_backend.catalog.api.PlatformController;
 import com.nitros64.nitros_games_backend.catalog.api.ProcessorController;
-import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyRequest;
-import com.nitros64.nitros_games_backend.catalog.api.dto.DevelopmentDifficultyResponse;
 import com.nitros64.nitros_games_backend.catalog.api.dto.GameGenreRequest;
 import com.nitros64.nitros_games_backend.catalog.api.dto.GameGenreResponse;
 import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformRequest;
 import com.nitros64.nitros_games_backend.catalog.api.dto.PlatformResponse;
 import com.nitros64.nitros_games_backend.catalog.api.dto.ProcessorRequest;
 import com.nitros64.nitros_games_backend.catalog.api.dto.ProcessorResponse;
-import com.nitros64.nitros_games_backend.catalog.api.mapper.DevelopmentDifficultyApiMapper;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.GameGenreApiMapper;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.PlatformApiMapper;
 import com.nitros64.nitros_games_backend.catalog.api.mapper.ProcessorApiMapper;
@@ -44,18 +37,19 @@ class CatalogModuleStructureTests {
     @Test
     void catalogComponentsStayInsideTheirVerticalModule() {
         List<Class<?>> catalogTypes = List.of(
-                DevelopmentDifficulty.class, GameGenre.class, Platform.class, Processor.class,
-                DevelopmentDifficultyRepository.class, GameGenreRepository.class,
+                GameGenre.class, 
+                Platform.class, 
+                Processor.class,
+                GameGenreRepository.class,
                 PlatformRepository.class, ProcessorRepository.class,
-                DevelopmentDifficultyService.class, GameGenreService.class,
+                GameGenreService.class,
                 PlatformService.class, ProcessorService.class,
-                DevelopmentDifficultyController.class, GameGenreController.class,
+                GameGenreController.class,
                 PlatformController.class, ProcessorController.class,
-                DevelopmentDifficultyRequest.class, DevelopmentDifficultyResponse.class,
                 GameGenreRequest.class, GameGenreResponse.class,
                 PlatformRequest.class, PlatformResponse.class,
                 ProcessorRequest.class, ProcessorResponse.class,
-                DevelopmentDifficultyApiMapper.class, GameGenreApiMapper.class,
+                GameGenreApiMapper.class,
                 PlatformApiMapper.class, ProcessorApiMapper.class);
 
         assertThat(catalogTypes)
@@ -66,7 +60,6 @@ class CatalogModuleStructureTests {
     @Test
     void catalogControllersDoNotExposeJpaEntities() {
         Stream.of(
-                DevelopmentDifficultyController.class,
                 GameGenreController.class,
                 PlatformController.class,
                 ProcessorController.class)
@@ -79,7 +72,6 @@ class CatalogModuleStructureTests {
     @Test
     void catalogServicesUseExplicitPersistenceContracts() {
         Stream.of(
-                DevelopmentDifficultyService.class,
                 GameGenreService.class,
                 PlatformService.class,
                 ProcessorService.class)

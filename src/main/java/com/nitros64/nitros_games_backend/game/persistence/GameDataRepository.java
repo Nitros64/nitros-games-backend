@@ -17,7 +17,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
     @Query("""
             select distinct game
             from GameData game
-            join fetch game.developmentDifficulty
             left join fetch game.genres
             order by game.id
             """)
@@ -26,7 +25,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
     @Query("""
             select distinct game
             from GameData game
-            join fetch game.developmentDifficulty
             left join fetch game.genres
             where game.id = :id
             """)
@@ -35,7 +33,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
     @Query("""
             select distinct game
             from GameData game
-            join fetch game.developmentDifficulty
             left join fetch game.genres
             where game.id in :ids
             """)
@@ -52,8 +49,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
                     from GameData game
                     where (:name is null
                            or lower(game.name) like lower(concat('%', :name, '%')))
-                      and (:developmentDifficultyId is null
-                           or game.developmentDifficulty.id = :developmentDifficultyId)
                       and (:genreId is null
                            or exists (
                                select genre.id
@@ -67,8 +62,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
                     from GameData game
                     where (:name is null
                            or lower(game.name) like lower(concat('%', :name, '%')))
-                      and (:developmentDifficultyId is null
-                           or game.developmentDifficulty.id = :developmentDifficultyId)
                       and (:genreId is null
                            or exists (
                                select genre.id
@@ -79,7 +72,6 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
                     """)
     Page<Long> searchIds(
             @Param("name") String name,
-            @Param("developmentDifficultyId") Long developmentDifficultyId,
             @Param("genreId") Long genreId,
             @Param("jam") Boolean jam,
             Pageable pageable);

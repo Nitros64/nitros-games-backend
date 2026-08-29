@@ -26,7 +26,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
@@ -48,16 +47,12 @@ class CatalogApiContractTests {
     @Autowired
     private ProcessorRepository processorRepository;
 
-    @Autowired
-    private DevelopmentDifficultyRepository difficultyRepository;
-
     @BeforeEach
     @AfterEach
     void clearCatalog() {
         genreRepository.deleteAll();
         platformRepository.deleteAll();
         processorRepository.deleteAll();
-        difficultyRepository.deleteAll();
     }
 
     @ParameterizedTest(name = "{0} uses DTOs for its complete HTTP contract")
@@ -181,32 +176,29 @@ class CatalogApiContractTests {
         return Stream.of(
                 Arguments.of("game-genres", "Adventure", "Strategy", "Puzzle", "Simulation"),
                 Arguments.of("platforms", "Windows", "Linux", "Arcade", "Console"),
-                Arguments.of("processors", "Z80", "M68000", "ARM64", "RISC-V"),
-                Arguments.of("development-difficulties", "Medium", "Advanced", "Beginner", "Expert"));
+                Arguments.of("processors", "Z80", "M68000", "ARM64", "RISC-V"));
+
     }
 
     private static Stream<Arguments> catalogValidationCases() {
         return Stream.of(
                 Arguments.of("game-genres", "Genre2"),
                 Arguments.of("platforms", "Platform2"),
-                Arguments.of("processors", "ProcessorNameTooLong"),
-                Arguments.of("development-difficulties", "Level2"));
+                Arguments.of("processors", "ProcessorNameTooLong"));
     }
 
     private static Stream<Arguments> catalogSearchResources() {
         return Stream.of(
                 Arguments.of("game-genres"),
                 Arguments.of("platforms"),
-                Arguments.of("processors"),
-                Arguments.of("development-difficulties"));
+                Arguments.of("processors"));
     }
 
     private static Stream<Arguments> legacyCatalogResources() {
         return Stream.of(
                 Arguments.of("gamegenre"),
                 Arguments.of("platform"),
-                Arguments.of("processor"),
-                Arguments.of("developmentdifficulty"));
+                Arguments.of("processor"));
     }
 
     private String json(String name) {

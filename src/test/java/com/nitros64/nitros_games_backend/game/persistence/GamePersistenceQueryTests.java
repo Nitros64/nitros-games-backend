@@ -18,11 +18,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nitros64.nitros_games_backend.catalog.domain.DevelopmentDifficulty;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.catalog.domain.Platform;
 import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.DevelopmentDifficultyRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.GameGenreRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
 import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
@@ -54,7 +52,6 @@ class GamePersistenceQueryTests {
 
     @Autowired EntityManager entityManager;
     @Autowired EntityManagerFactory entityManagerFactory;
-    @Autowired DevelopmentDifficultyRepository difficultyRepository;
     @Autowired GameGenreRepository genreRepository;
     @Autowired PlatformRepository platformRepository;
     @Autowired ProcessorRepository processorRepository;
@@ -90,7 +87,6 @@ class GamePersistenceQueryTests {
         resetPersistenceContext();
         var game = gameRepository.findDetailedById(fixture.gameId()).orElseThrow();
 
-        assertThat(Hibernate.isInitialized(game.getDevelopmentDifficulty())).isTrue();
         assertThat(Hibernate.isInitialized(game.getGenres())).isTrue();
         assertThat(game.getGenres()).singleElement().extracting(GameGenre::getName)
                 .isEqualTo("Adventure");
@@ -130,8 +126,7 @@ class GamePersistenceQueryTests {
         var fixture = createFixture();
         var otherGame = new GameData();
         otherGame.updateDetails(
-                "Other Game", "Other game", false, 1,
-                difficultyRepository.getReferenceById(fixture.difficultyId()), Set.of());
+                "Other Game", "Other game", false, 1, Set.of());
         otherGame = gameRepository.saveAndFlush(otherGame);
 
         resetPersistenceContext();
@@ -154,17 +149,16 @@ class GamePersistenceQueryTests {
     @Test
     void gameSearchAppliesCombinedFiltersWithStablePagination() throws Exception {
         var fixture = createFixture();
-        var difficulty = difficultyRepository.getReferenceById(fixture.difficultyId());
         var genre = genreRepository.getReferenceById(fixture.genreId());
-        saveGame("Alpha Jam", true, difficulty, genre);
-        saveGame("Zeta Jam", true, difficulty, genre);
+        saveGame("Alpha Jam", true, genre);
+        saveGame("Zeta Jam", true,  genre);
 
         resetPersistenceContext();
         var firstPage = gameRepository.searchIds(
-                "JAM", fixture.difficultyId(), fixture.genreId(), true,
+                "JAM",  fixture.genreId(), true,
                 PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "name")));
         var secondPage = gameRepository.searchIds(
-                "JAM", fixture.difficultyId(), fixture.genreId(), true,
+                "JAM",  fixture.genreId(), true,
                 PageRequest.of(1, 1, Sort.by(Sort.Direction.DESC, "name")));
 
         assertThat(firstPage.getTotalElements()).isEqualTo(2);
@@ -175,7 +169,6 @@ class GamePersistenceQueryTests {
     }
 
     private Fixture createFixture() throws Exception {
-        var difficulty = difficultyRepository.saveAndFlush(new DevelopmentDifficulty("Medium"));
         var genre = genreRepository.saveAndFlush(new GameGenre("Adventure"));
         var platform = platformRepository.saveAndFlush(new Platform("Windows"));
         var processor = processorRepository.saveAndFlush(new Processor("x86-64"));
@@ -188,7 +181,7 @@ class GamePersistenceQueryTests {
         var toolProcessor = toolProcessorRepository.saveAndFlush(new ToolProcessor(tool, processor));
         var hostImage = hostImageRepository.saveAndFlush(
                 new ServerHostImage("MediaFire", "mediafire.png"));
-        var game = saveGame("Nitro Game", false, difficulty, genre);
+        var game = saveGame("Nitro Game", false,  genre);
 
         var version = new GameVersion();
         version.attachToGame(game);
@@ -202,17 +195,15 @@ class GamePersistenceQueryTests {
         link.updateDetails("https://files.example/game.zip", hostImage);
         link = downloadLinkRepository.saveAndFlush(link);
 
-        return new Fixture(
-                difficulty.getId(), genre.getId(), game.getId(), version.getId(), link.getId());
+        return new Fixture( genre.getId(), game.getId(), version.getId(), link.getId());
     }
 
     private GameData saveGame(
             String name,
             boolean jam,
-            DevelopmentDifficulty difficulty,
             GameGenre genre) {
         var game = new GameData();
-        game.updateDetails(name, "Game description", jam, 2, difficulty, Set.of(genre));
+        game.updateDetails(name, "Game description", jam, 2, Set.of(genre));
         return gameRepository.saveAndFlush(game);
     }
 
@@ -223,7 +214,6 @@ class GamePersistenceQueryTests {
     }
 
     private record Fixture(
-            Long difficultyId,
             Long genreId,
             Long gameId,
             Long versionId,

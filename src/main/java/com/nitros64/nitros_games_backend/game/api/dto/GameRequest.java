@@ -14,6 +14,5 @@ public record GameRequest(
         @NotBlank @Size(min = 4, max = 30) String description,
         boolean jam,
         @Positive int developerCount,
-        @NotNull @Positive Long developmentDifficultyId,
         @NotEmpty Set<@Valid @NotNull @Positive Long> genreIds) {
 }
