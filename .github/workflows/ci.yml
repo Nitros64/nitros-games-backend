@@ -18,12 +18,18 @@ concurrency:
 
 jobs:
   terraform:
-    name: Terraform bootstrap
+    name: Terraform (${{ matrix.root }})
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        root:
+          - bootstrap
+          - staging
     defaults:
       run:
-        working-directory: infra/terraform/bootstrap
+        working-directory: infra/terraform/${{ matrix.root }}
 
     steps:
       # Descarga el commit exacto que disparó el workflow. Las credenciales no se

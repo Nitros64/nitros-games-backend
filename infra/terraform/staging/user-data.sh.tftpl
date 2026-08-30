@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y docker curl
+systemctl enable --now docker
+systemctl enable --now amazon-ssm-agent
+
+install -d -m 0755 /usr/local/lib/docker/cli-plugins
+compose_binary="/usr/local/lib/docker/cli-plugins/docker-compose"
+curl --fail --location --retry 5 --silent --show-error \
+  "https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-linux-x86_64" \
+  --output "$compose_binary"
+echo "${docker_compose_sha256}  $compose_binary" | sha256sum --check --strict
+chmod 0755 "$compose_binary"
+
+install -d -m 0750 /opt/nitros-games
+touch /var/lib/nitros-games-bootstrap-ready
+
+docker --version
+docker compose version
+aws --version
