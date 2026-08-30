@@ -1,0 +1,89 @@
+name: nitros-games-staging
+
+services:
+  mysql:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: nitrosgames
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD=$${MYSQL_PASSWORD} mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 640m
+    pids_limit: 300
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  api:
+    image: ${APP_IMAGE:?Set APP_IMAGE to the immutable ECR image}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/nitrosgames?sslMode=DISABLED&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      APP_STORAGE_HOST_IMAGES_DIRECTORY: /var/lib/nitros-games/host-images
+      APP_STORAGE_MAX_FILE_SIZE: 10MB
+      APP_STORAGE_MAX_REQUEST_SIZE: 11MB
+      APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS:?Set APP_SECURITY_ALLOWED_ORIGINS}
+      OAUTH2_ISSUER_URI: ${OAUTH2_ISSUER_URI:?Set OAUTH2_ISSUER_URI}
+      OAUTH2_JWK_SET_URI: ${OAUTH2_JWK_SET_URI:?Set OAUTH2_JWK_SET_URI}
+      OAUTH2_AUDIENCE: ${OAUTH2_AUDIENCE:-nitros-games-api}
+      APP_LOG_LEVEL: INFO
+      DB_POOL_MIN_IDLE: 1
+      DB_POOL_MAX_SIZE: 5
+    ports:
+      - 127.0.0.1:8080:8080
+    volumes:
+      - host-images:/var/lib/nitros-games/host-images
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 640m
+    pids_limit: 200
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1:8080/actuator/health/readiness
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  mysql-data:
+  host-images:

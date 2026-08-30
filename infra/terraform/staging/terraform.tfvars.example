@@ -1,0 +1,15 @@
+aws_region                  = "eu-west-1"
+github_owner                = "Nitros64"
+github_repository           = "nitros-games-backend"
+github_branch               = "main"
+github_oidc_provider_arn    = "arn:aws:iam::529601496188:oidc-provider/token.actions.githubusercontent.com"
+ecr_repository_name        = "nitros-games-backend"
+instance_type               = "t3.small"
+root_volume_size_gib        = 16
+docker_compose_version      = "v5.1.4"
+docker_compose_sha256       = "33b208d7e76639db742fae84b966cc01dacae58ca3fc4dabbc907045aefdf0c4"
+
+additional_tags = {
+  Repository = "Nitros64/nitros-games-backend"
+  Lifecycle  = "disposable"
+}
