@@ -17,6 +17,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  terraform:
+    name: Terraform bootstrap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/terraform/bootstrap
+
+    steps:
+      # Descarga el commit exacto que disparó el workflow. Las credenciales no se
+      # conservan porque este job solo necesita leer el repositorio.
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Instala una versión fija de Terraform para que local y CI interpreten la
+      # infraestructura de la misma manera.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.15.6"
+
+      # Comprueba que todos los archivos .tf siguen el formato estándar. No
+      # modifica archivos; falla si alguien olvidó ejecutar terraform fmt.
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      # Descarga los providers fijados en .terraform.lock.hcl. El backend se
+      # desactiva porque CI solo valida y no debe leer ni modificar el estado.
+      - name: Initialize Terraform without a backend
+        run: terraform init -backend=false -input=false
+
+      # Verifica referencias, tipos, recursos y sintaxis sin crear nada en AWS.
+      - name: Validate Terraform
+        run: terraform validate -no-color
+
   maven:
     name: Maven (${{ matrix.database }})
     runs-on: ubuntu-24.04
@@ -29,11 +66,14 @@ jobs:
           - mysql
 
     steps:
+      # Cada variante de la matriz obtiene una copia limpia del mismo commit.
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
+      # Instala Java 21 y reutiliza la caché local de Maven para reducir el
+      # tiempo dedicado a descargar dependencias en ejecuciones posteriores.
       - name: Set up Java 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
@@ -41,13 +81,19 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # Los permisos de ejecución de archivos no siempre se conservan al pasar
+      # de Windows a Linux; este paso permite ejecutar el Maven Wrapper.
       - name: Make Maven Wrapper executable
         run: chmod +x mvnw
 
+      # Ejecuta compilación y suite normal sobre H2. La condición hace que este
+      # comando se ejecute únicamente en la variante h2 de la matriz.
       - name: Verify with H2
         if: matrix.database == 'h2'
         run: ./mvnw -B -ntp clean verify
 
+      # Activa el perfil de integración: Testcontainers inicia MySQL y valida
+      # las migraciones Flyway y consultas contra el motor usado en producción.
       - name: Verify with MySQL and Testcontainers
         if: matrix.database == 'mysql'
         run: ./mvnw -B -ntp clean verify -Pmysql-it
@@ -59,14 +105,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Descarga de nuevo el commit después de que Maven haya terminado. Los
+      # jobs son máquinas aisladas y no comparten su directorio de trabajo.
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
+      # Prepara Docker Buildx, que permite usar el builder moderno y la caché
+      # remota de GitHub Actions definida en el siguiente paso.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
+      # Construye la imagen de producción y verifica el Dockerfile. push:false
+      # garantiza que un PR o este CI todavía no publique imágenes externas.
       - name: Build application image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
