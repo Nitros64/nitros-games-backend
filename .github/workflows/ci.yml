@@ -101,6 +101,10 @@ jobs:
   docker:
     name: Docker image
     needs: maven
+    # En pull requests y ejecuciones manuales valida la imagen sin publicarla.
+    # Un push a main usa el job publish para construirla y enviarla a ECR una
+    # sola vez.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -125,5 +129,94 @@ jobs:
           context: .
           push: false
           tags: nitros-games-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish:
+    name: Publish image to ECR
+    needs:
+      - terraform
+      - maven
+    # Solo los commits ya integrados en main pueden solicitar credenciales AWS.
+    # Los PR y las ejecuciones manuales nunca entran en este job.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+
+    steps:
+      # Comprueba pronto que el repositorio tiene las variables creadas por el
+      # bootstrap. Así un error de configuración no parece un fallo de AWS.
+      - name: Validate repository variables
+        env:
+          AWS_ECR_PUBLISH_ROLE_ARN: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$ECR_REPOSITORY"
+          test -n "$AWS_ECR_PUBLISH_ROLE_ARN"
+
+      # Descarga exactamente el merge commit cuyo SHA se usará como etiqueta.
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Intercambia el token OIDC efímero de GitHub por una sesión corta del rol
+      # IAM. No existen access keys de AWS almacenadas como secrets.
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-ecr-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Una repetición del mismo workflow usa el mismo SHA. Si esa imagen ya
+      # existe, evita chocar con las etiquetas inmutables de ECR.
+      - name: Check whether the commit image already exists
+        id: image
+        run: |
+          image_count="$(aws ecr batch-get-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$GITHUB_SHA" \
+            --query 'length(images)' \
+            --output text)"
+          if [ "$image_count" = "0" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image for commit $GITHUB_SHA already exists; nothing to publish."
+          fi
+
+      # Obtiene de ECR un login Docker temporal. Solo se necesita cuando aún no
+      # existe una imagen para este commit.
+      - name: Log in to Amazon ECR
+        if: steps.image.outputs.exists != 'true'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # Prepara Buildx y la caché de GitHub para reconstruir con rapidez las
+      # capas que ya fueron validadas durante los pull requests.
+      - name: Set up Docker Buildx
+        if: steps.image.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      # Publica una sola etiqueta: el SHA completo e inmutable del merge commit.
+      # No se usa latest, por lo que un despliegue o rollback siempre es exacto.
+      - name: Build and push commit image
+        if: steps.image.outputs.exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
