@@ -15,8 +15,6 @@ import com.nitros64.nitros_games_backend.game.domain.GameVersion;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -61,8 +59,6 @@ class JpaDomainModelTests {
                 DownloadLink.class,
                 ProgrammingTool.class,
                 LanguageTool.class,
-                ToolPlatform.class,
-                ToolProcessor.class,
                 ServerHostImage.class))
                 .allSatisfy(type -> assertThat(Arrays.stream(type.getDeclaredMethods())
                         .map(Method::getName)

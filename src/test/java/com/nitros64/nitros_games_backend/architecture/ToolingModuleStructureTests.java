@@ -34,16 +34,10 @@ import com.nitros64.nitros_games_backend.tooling.domain.LanguageToolId;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatformId;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessorId;
 import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 class ToolingModuleStructureTests {
 
@@ -55,14 +49,11 @@ class ToolingModuleStructureTests {
         List<Class<?>> toolingTypes = List.of(
                 ProgrammingLanguage.class, ProgrammingTool.class, ProgramToolType.class,
                 LanguageTool.class, LanguageToolId.class,
-                ToolPlatform.class, ToolPlatformId.class,
-                ToolProcessor.class, ToolProcessorId.class,
                 ProgramLangService.class, ProgramLangServiceImpl.class,
                 ProgramToolService.class, ProgramToolServiceImpl.class,
                 ProgramToolTypeService.class, ProgramToolTypeServiceImpl.class,
                 ProgrammingLanguageRepository.class, ProgrammingToolRepository.class,
                 ProgramToolTypeRepository.class, LanguageToolRepository.class,
-                ToolPlatformRepository.class, ToolProcessorRepository.class,
                 ProgramLanguageController.class, ProgramToolController.class,
                 ProgramToolTypeController.class,
                 ProgrammingLanguageRequest.class, ProgrammingLanguageResponse.class,

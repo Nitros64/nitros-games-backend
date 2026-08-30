@@ -33,14 +33,10 @@ import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -59,8 +55,6 @@ class GamePersistenceQueryTests {
     @Autowired ProgramToolTypeRepository toolTypeRepository;
     @Autowired ProgrammingToolRepository toolRepository;
     @Autowired LanguageToolRepository languageToolRepository;
-    @Autowired ToolPlatformRepository toolPlatformRepository;
-    @Autowired ToolProcessorRepository toolProcessorRepository;
     @Autowired ServerHostImageRepository hostImageRepository;
     @Autowired GameDataRepository gameRepository;
     @Autowired GameVersionRepository versionRepository;
@@ -115,8 +109,8 @@ class GamePersistenceQueryTests {
 
         assertThat(Hibernate.isInitialized(version.getGame())).isFalse();
         assertThat(Hibernate.isInitialized(version.getLanguageTool())).isFalse();
-        assertThat(Hibernate.isInitialized(version.getToolPlatform())).isFalse();
-        assertThat(Hibernate.isInitialized(version.getToolProcessor())).isFalse();
+        assertThat(Hibernate.isInitialized(version.getPlatform())).isFalse();
+        assertThat(Hibernate.isInitialized(version.getProcessor())).isFalse();
         assertThat(Hibernate.isInitialized(version.getDownloadLinks())).isFalse();
         assertThat(statistics.getPrepareStatementCount()).isOne();
     }
@@ -177,8 +171,6 @@ class GamePersistenceQueryTests {
         var tool = toolRepository.saveAndFlush(new ProgrammingTool(
                 "LibGDX", URI.create("https://libgdx.com").toURL(), "libgdx.png", toolType));
         var languageTool = languageToolRepository.saveAndFlush(new LanguageTool(language, tool));
-        var toolPlatform = toolPlatformRepository.saveAndFlush(new ToolPlatform(tool, platform));
-        var toolProcessor = toolProcessorRepository.saveAndFlush(new ToolProcessor(tool, processor));
         var hostImage = hostImageRepository.saveAndFlush(
                 new ServerHostImage("MediaFire", "mediafire.png"));
         var game = saveGame("Nitro Game", false,  genre);
@@ -186,8 +178,7 @@ class GamePersistenceQueryTests {
         var version = new GameVersion();
         version.attachToGame(game);
         version.updateCompatibility(
-                "Version One", languageTool, toolPlatform, toolProcessor,
-                platform.getId(), processor.getId());
+                "Version One", languageTool, platform, processor);
         version = versionRepository.saveAndFlush(version);
 
         var link = new DownloadLink();

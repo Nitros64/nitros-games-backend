@@ -3,9 +3,7 @@ package com.nitros64.nitros_games_backend.tooling.application;
 public record ProgrammingToolSearchCriteria(
         String name,
         Long toolTypeId,
-        Long languageId,
-        Long platformId,
-        Long processorId) {
+        Long languageId) {
 
     public ProgrammingToolSearchCriteria {
         name = name == null || name.isBlank() ? null : name.strip();

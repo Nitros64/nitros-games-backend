@@ -214,11 +214,11 @@ El tamaño de página máximo aceptado es 100. Los filtros de búsqueda de juego
 y herramientas son opcionales y combinables:
 
 ```text
-GET /api/v1/games/search?name=nitro&developmentDifficultyId=1
-    &genreId=1&jam=false&page=0&size=20&sort=name,asc
+GET /api/v1/games/search?name=nitro&genreId=1&jam=false
+    &page=0&size=20&sort=name,asc
 
 GET /api/v1/programming-tools/search?name=gradle&toolTypeId=1
-    &languageId=1&platformId=1&processorId=1&page=0&size=20&sort=name,asc
+    &languageId=1&page=0&size=20&sort=name,asc
 ```
 
 ### Ejemplo: obtener un token y crear un género
@@ -286,7 +286,6 @@ JPA. Por ejemplo, para crear un juego:
   "description": "Great game",
   "jam": false,
   "developerCount": 2,
-  "developmentDifficultyId": 1,
   "genreIds": [1, 2]
 }
 ```

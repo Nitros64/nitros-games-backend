@@ -16,10 +16,10 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import com.nitros64.nitros_games_backend.catalog.domain.Platform;
+import com.nitros64.nitros_games_backend.catalog.domain.Processor;
 import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 
 @Entity
 @Table(name = "game_version")
@@ -42,23 +42,13 @@ public class GameVersion extends AbstractEntity {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     private LanguageTool languageTool;
     
-    @JoinColumns({
-        @JoinColumn(name = "fk_idtool", referencedColumnName = "fk_idtool", insertable = false, updatable = false),
-        @JoinColumn(name = "fk_idprocessor", referencedColumnName = "fk_idprocessor", insertable = false, updatable = false)})
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    private ToolProcessor toolProcessor;
+    @JoinColumn(name = "fk_idplatform", nullable = false)
+    private Platform platform;
 
-    @Column(name = "fk_idprocessor", nullable = false)
-    private Long processorId;
-    
-    @JoinColumns({
-        @JoinColumn(name = "fk_idtool", referencedColumnName = "fk_idtool", insertable = false, updatable = false),
-        @JoinColumn(name = "fk_idplatform", referencedColumnName = "fk_idplatform", insertable = false, updatable = false)})
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    private ToolPlatform toolPlatform;
-
-    @Column(name = "fk_idplatform", nullable = false)
-    private Long platformId;
+    @JoinColumn(name = "fk_idprocessor", nullable = false)
+    private Processor processor;
 
     @OneToMany(mappedBy = "gameVersion",
                fetch = FetchType.LAZY)
@@ -70,17 +60,14 @@ public class GameVersion extends AbstractEntity {
     }
 
     public void updateCompatibility(
-            String name,
-            LanguageTool languageTool,
-            ToolPlatform toolPlatform,
-            ToolProcessor toolProcessor,
-            Long platformId,
-            Long processorId) {
+        String name,
+        LanguageTool languageTool,
+        Platform platform,
+        Processor processor) {
+
         this.name = name;
         this.languageTool = languageTool;
-        this.toolPlatform = toolPlatform;
-        this.toolProcessor = toolProcessor;
-        this.platformId = platformId;
-        this.processorId = processorId;
+        this.platform = platform;
+        this.processor = processor;
     }
 }

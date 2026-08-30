@@ -41,16 +41,6 @@ public interface ProgrammingToolRepository extends JpaRepository<ProgrammingTool
                             from LanguageTool languageTool
                             where languageTool.programmingTool = tool
                               and languageTool.programmingLanguage.id = :languageId))
-                      and (:platformId is null or exists (
-                            select toolPlatform
-                            from ToolPlatform toolPlatform
-                            where toolPlatform.programmingTool = tool
-                              and toolPlatform.platform.id = :platformId))
-                      and (:processorId is null or exists (
-                            select toolProcessor
-                            from ToolProcessor toolProcessor
-                            where toolProcessor.programmingTool = tool
-                              and toolProcessor.processor.id = :processorId))
                     """,
             countQuery = """
                     select count(tool)
@@ -63,22 +53,10 @@ public interface ProgrammingToolRepository extends JpaRepository<ProgrammingTool
                             from LanguageTool languageTool
                             where languageTool.programmingTool = tool
                               and languageTool.programmingLanguage.id = :languageId))
-                      and (:platformId is null or exists (
-                            select toolPlatform
-                            from ToolPlatform toolPlatform
-                            where toolPlatform.programmingTool = tool
-                              and toolPlatform.platform.id = :platformId))
-                      and (:processorId is null or exists (
-                            select toolProcessor
-                            from ToolProcessor toolProcessor
-                            where toolProcessor.programmingTool = tool
-                              and toolProcessor.processor.id = :processorId))
                     """)
     Page<ProgrammingTool> search(
             @Param("name") String name,
             @Param("toolTypeId") Long toolTypeId,
             @Param("languageId") Long languageId,
-            @Param("platformId") Long platformId,
-            @Param("processorId") Long processorId,
             Pageable pageable);
 }

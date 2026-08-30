@@ -87,7 +87,7 @@ class MySqlMigrationIT {
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
         assertThat(flyway.info().current().getVersion().toString())
-                .isEqualTo("3");
+                .isEqualTo("4");
 
         Integer applicationTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -96,7 +96,7 @@ class MySqlMigrationIT {
                 AND table_name <> 'flyway_schema_history'
                 """, Integer.class);
 
-        assertThat(applicationTableCount).isEqualTo(14);
+        assertThat(applicationTableCount).isEqualTo(12);
 
         assertThat(genreRepository.findAll()).isEmpty();
 
@@ -131,16 +131,12 @@ class MySqlMigrationIT {
     }
 
     @Test
-    void programmingToolSearchRunsAgainstMySqlWithCompositeCompatibilityKeys() {
+    void programmingToolSearchRunsAgainstMySqlWithLanguageCompatibility() {
         jdbcTemplate.update("insert into programtool_type (name) values (?)", "Build");
         jdbcTemplate.update("insert into program_lang (name) values (?)", "Java");
-        jdbcTemplate.update("insert into platform (name) values (?)", "Linux");
-        jdbcTemplate.update("insert into processor (name) values (?)", "x86-64");
 
         Long typeId = id("programtool_type", "Build");
         Long languageId = id("program_lang", "Java");
-        Long platformId = id("platform", "Linux");
-        Long processorId = id("processor", "x86-64");
 
         jdbcTemplate.update("""
                 insert into program_tool
@@ -152,21 +148,11 @@ class MySqlMigrationIT {
                 "insert into tool_lang (program_lang_id, program_tool_id) values (?, ?)",
                 languageId,
                 toolId);
-        jdbcTemplate.update(
-                "insert into tool_platform (fk_idplatform, fk_idtool) values (?, ?)",
-                platformId,
-                toolId);
-        jdbcTemplate.update(
-                "insert into tool_processor (fk_idprocessor, fk_idtool) values (?, ?)",
-                processorId,
-                toolId);
 
         var result = programmingToolRepository.search(
                 "grad",
                 typeId,
                 languageId,
-                platformId,
-                processorId,
                 PageRequest.of(0, 10, Sort.by("name")));
 
         assertThat(result.getTotalElements()).isEqualTo(1);
@@ -200,9 +186,7 @@ class MySqlMigrationIT {
 
     @Test
     void gameSearchRunsAgainstMySqlWithCombinedFiltersAndDetailedLoading() {
-        //jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Advanced");
         jdbcTemplate.update("insert into game_genres (name) values (?)", "Strategy");
-        //Long difficultyId = id("dev_difficulty", "Advanced");
         Long genreId = id("game_genres", "Strategy");
         jdbcTemplate.update("""
                 insert into gamedata
@@ -233,7 +217,6 @@ class MySqlMigrationIT {
 
     @Test
     void gameHierarchyQueriesRunAgainstMySqlWithoutUnnecessaryLoading() {
-        //jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
         jdbcTemplate.update("insert into programtool_type (name) values (?)", "Engine");
         jdbcTemplate.update("insert into program_lang (name) values (?)", "Java");
         jdbcTemplate.update("insert into platform (name) values (?)", "Windows");
@@ -242,7 +225,6 @@ class MySqlMigrationIT {
                 "insert into server_hostimage (imagepath, name) values (?, ?)",
                 "mediafire.png", "MediaFire");
 
-        //Long difficultyId = id("dev_difficulty", "Medium");
         Long typeId = id("programtool_type", "Engine");
         Long languageId = id("program_lang", "Java");
         Long platformId = id("platform", "Windows");
@@ -271,12 +253,6 @@ class MySqlMigrationIT {
         jdbcTemplate.update(
                 "insert into tool_lang (program_lang_id, program_tool_id) values (?, ?)",
                 languageId, toolId);
-        jdbcTemplate.update(
-                "insert into tool_platform (fk_idplatform, fk_idtool) values (?, ?)",
-                platformId, toolId);
-        jdbcTemplate.update(
-                "insert into tool_processor (fk_idprocessor, fk_idtool) values (?, ?)",
-                processorId, toolId);
         jdbcTemplate.update("""
                 insert into game_version
                     (name, fk_gamedata, fk_idlang, fk_idtool, fk_idplatform, fk_idprocessor)
@@ -300,8 +276,8 @@ class MySqlMigrationIT {
         var owned = gameVersionRepository.findOwnedByIdAndGameId(
                 versionId, firstGameId).orElseThrow();
         assertThat(Hibernate.isInitialized(owned.getLanguageTool())).isFalse();
-        assertThat(Hibernate.isInitialized(owned.getToolPlatform())).isFalse();
-        assertThat(Hibernate.isInitialized(owned.getToolProcessor())).isFalse();
+        assertThat(Hibernate.isInitialized(owned.getPlatform())).isFalse();
+        assertThat(Hibernate.isInitialized(owned.getProcessor())).isFalse();
 
         entityManager.clear();
         assertThat(downloadLinkRepository.findAllDetailedByHierarchy(versionId, firstGameId))

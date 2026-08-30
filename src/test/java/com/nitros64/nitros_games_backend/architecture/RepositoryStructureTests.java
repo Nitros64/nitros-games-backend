@@ -18,8 +18,6 @@ import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolReposit
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 class RepositoryStructureTests {
 
@@ -36,9 +34,7 @@ class RepositoryStructureTests {
                 LanguageToolRepository.class,
                 ProgrammingLanguageRepository.class,
                 ProgrammingToolRepository.class,
-                ProgramToolTypeRepository.class,
-                ToolPlatformRepository.class,
-                ToolProcessorRepository.class)
+                ProgramToolTypeRepository.class)
                 .forEach(repository -> assertThat(repository.getInterfaces())
                         .containsExactly(JpaRepository.class));
     }

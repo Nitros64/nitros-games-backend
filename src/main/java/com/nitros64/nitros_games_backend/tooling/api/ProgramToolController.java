@@ -59,15 +59,11 @@ public class ProgramToolController {
             @RequestParam(required = false) @Size(max = 30) String name,
             @RequestParam(required = false) @Positive Long toolTypeId,
             @RequestParam(required = false) @Positive Long languageId,
-            @RequestParam(required = false) @Positive Long platformId,
-            @RequestParam(required = false) @Positive Long processorId,
             Pageable pageable) {
         var criteria = new ProgrammingToolSearchCriteria(
                 name,
                 toolTypeId,
-                languageId,
-                platformId,
-                processorId);
+                languageId);
         return ResponseEntity.ok(PageResponse.from(
                 service.search(criteria, pageable),
                 mapper::toResponse));

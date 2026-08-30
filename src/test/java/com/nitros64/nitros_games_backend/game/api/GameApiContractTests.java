@@ -39,13 +39,9 @@ import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
 
 @SpringBootTest
@@ -62,8 +58,6 @@ class GameApiContractTests {
     @Autowired ProgramToolTypeRepository toolTypeRepository;
     @Autowired ProgrammingToolRepository toolRepository;
     @Autowired LanguageToolRepository languageToolRepository;
-    @Autowired ToolPlatformRepository toolPlatformRepository;
-    @Autowired ToolProcessorRepository toolProcessorRepository;
     @Autowired ServerHostImageRepository hostImageRepository;
     @Autowired GameDataRepository gameRepository;
     @Autowired GameVersionRepository versionRepository;
@@ -87,8 +81,6 @@ class GameApiContractTests {
         tool = toolRepository.saveAndFlush(new ProgrammingTool(
                 "LibGDX", URI.create("https://libgdx.com").toURL(), "libgdx.png", toolType));
         languageToolRepository.save(new LanguageTool(language, tool));
-        toolPlatformRepository.saveAndFlush(new ToolPlatform(tool, platform));
-        toolProcessorRepository.saveAndFlush(new ToolProcessor(tool, processor));
         hostImage = hostImageRepository.saveAndFlush(new ServerHostImage("MediaFire", "mediafire.png"));
     }
 
@@ -352,8 +344,6 @@ class GameApiContractTests {
         jdbc.update("delete from mygames_genres");
         jdbc.update("delete from gamedata");
         jdbc.update("delete from tool_lang");
-        jdbc.update("delete from tool_platform");
-        jdbc.update("delete from tool_processor");
         jdbc.update("delete from program_tool");
         jdbc.update("delete from program_lang");
         jdbc.update("delete from programtool_type");

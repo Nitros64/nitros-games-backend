@@ -28,22 +28,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.jayway.jsonpath.JsonPath;
-import com.nitros64.nitros_games_backend.catalog.domain.Platform;
-import com.nitros64.nitros_games_backend.catalog.domain.Processor;
-import com.nitros64.nitros_games_backend.catalog.persistence.PlatformRepository;
-import com.nitros64.nitros_games_backend.catalog.persistence.ProcessorRepository;
 import com.nitros64.nitros_games_backend.tooling.domain.LanguageTool;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgramToolType;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingLanguage;
 import com.nitros64.nitros_games_backend.tooling.domain.ProgrammingTool;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolPlatform;
-import com.nitros64.nitros_games_backend.tooling.domain.ToolProcessor;
 import com.nitros64.nitros_games_backend.tooling.persistence.LanguageToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingLanguageRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgrammingToolRepository;
 import com.nitros64.nitros_games_backend.tooling.persistence.ProgramToolTypeRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolPlatformRepository;
-import com.nitros64.nitros_games_backend.tooling.persistence.ToolProcessorRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,44 +57,23 @@ class ToolingApiContractTests {
     @Autowired
     private LanguageToolRepository languageToolRepository;
 
-    @Autowired
-    private ToolPlatformRepository toolPlatformRepository;
-
-    @Autowired
-    private ToolProcessorRepository toolProcessorRepository;
-
-    @Autowired
-    private PlatformRepository platformRepository;
-
-    @Autowired
-    private ProcessorRepository processorRepository;
-
     @BeforeEach
     @AfterEach
     void clearTooling() {
         languageToolRepository.deleteAll();
-        toolPlatformRepository.deleteAll();
-        toolProcessorRepository.deleteAll();
         toolRepository.deleteAll();
         toolTypeRepository.deleteAll();
         languageRepository.deleteAll();
-        platformRepository.deleteAll();
-        processorRepository.deleteAll();
     }
 
     @Test
-    void programmingToolsCanBeFilteredByEveryCompatibilityDimension() throws Exception {
+    void programmingToolsCanBeFilteredByNameTypeAndLanguage() throws Exception {
         ProgramToolType ide = toolTypeRepository.saveAndFlush(new ProgramToolType("IDE"));
         ProgramToolType build = toolTypeRepository.saveAndFlush(new ProgramToolType("Build"));
         ProgrammingLanguage java = languageRepository.saveAndFlush(
                 new ProgrammingLanguage("Java"));
         ProgrammingLanguage python = languageRepository.saveAndFlush(
                 new ProgrammingLanguage("Python"));
-        Platform windows = platformRepository.saveAndFlush(new Platform("Windows"));
-        Platform linux = platformRepository.saveAndFlush(new Platform("Linux"));
-        Processor x64 = processorRepository.saveAndFlush(new Processor("x86-64"));
-        Processor arm = processorRepository.saveAndFlush(new Processor("ARM64"));
-
         ProgrammingTool eclipse = saveTool(
                 "Eclipse", "https://eclipse.example", "eclipse.png", ide);
         ProgrammingTool pyCharm = saveTool(
@@ -110,16 +81,14 @@ class ToolingApiContractTests {
         ProgrammingTool gradle = saveTool(
                 "Gradle", "https://gradle.example", "gradle.png", build);
 
-        linkCompatibility(eclipse, java, windows, x64);
-        linkCompatibility(pyCharm, python, linux, x64);
-        linkCompatibility(gradle, java, linux, x64);
+        linkLanguage(eclipse, java);
+        linkLanguage(pyCharm, python);
+        linkLanguage(gradle, java);
 
         mockMvc.perform(get("/api/v1/programming-tools/search")
                     .param("name", "grad")
                     .param("toolTypeId", build.getId().toString())
                     .param("languageId", java.getId().toString())
-                    .param("platformId", linux.getId().toString())
-                    .param("processorId", x64.getId().toString())
                     .param("sort", "name,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
@@ -138,10 +107,11 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.size").value(100));
 
         mockMvc.perform(get("/api/v1/programming-tools/search")
-                    .param("processorId", arm.getId().toString()))
+                    .param("languageId", python.getId().toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isEmpty())
-                .andExpect(jsonPath("$.totalElements").value(0));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("PyCharm"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -378,14 +348,10 @@ class ToolingApiContractTests {
                 type));
     }
 
-    private void linkCompatibility(
+    private void linkLanguage(
             ProgrammingTool tool,
-            ProgrammingLanguage language,
-            Platform platform,
-            Processor processor) {
+            ProgrammingLanguage language) {
         languageToolRepository.saveAndFlush(new LanguageTool(language, tool));
-        toolPlatformRepository.saveAndFlush(new ToolPlatform(tool, platform));
-        toolProcessorRepository.saveAndFlush(new ToolProcessor(tool, processor));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {

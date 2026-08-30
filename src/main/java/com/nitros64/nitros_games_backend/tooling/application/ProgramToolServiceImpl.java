@@ -48,8 +48,6 @@ public class ProgramToolServiceImpl implements ProgramToolService {
                 criteria.name(),
                 criteria.toolTypeId(),
                 criteria.languageId(),
-                criteria.platformId(),
-                criteria.processorId(),
                 pageable);
     }
 

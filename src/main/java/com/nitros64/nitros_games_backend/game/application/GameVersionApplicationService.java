@@ -74,10 +74,8 @@ public class GameVersionApplicationService {
         version.updateCompatibility(
                 command.name(),
                 compatibility.languageTool(),
-                compatibility.toolPlatform(),
-                compatibility.toolProcessor(),
-                command.platformId(),
-                command.processorId());
+                compatibility.platform(),
+                compatibility.processor());
         return version;
     }
 
@@ -98,7 +96,7 @@ public class GameVersionApplicationService {
                 version.getName(),
                 version.getLanguageTool().getProgrammingLanguage().getId(),
                 version.getLanguageTool().getProgrammingTool().getId(),
-                version.getPlatformId(),
-                version.getProcessorId());
+                version.getPlatform().getId(),
+                version.getProcessor().getId());
     }
 }
