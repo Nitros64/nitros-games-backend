@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euxo pipefail
 
-dnf install -y docker curl
+# Amazon Linux 2023 already includes curl-minimal. Installing the full curl
+# package conflicts with it and would stop cloud-init before Docker is ready.
+dnf install -y docker
 systemctl enable --now docker
 systemctl enable --now amazon-ssm-agent
 
