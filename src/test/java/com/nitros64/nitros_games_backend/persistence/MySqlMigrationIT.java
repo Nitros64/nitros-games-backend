@@ -86,35 +86,48 @@ class MySqlMigrationIT {
 
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("2");
+        assertThat(flyway.info().current().getVersion().toString())
+                .isEqualTo("3");
 
         Integer applicationTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
                 WHERE table_schema = DATABASE()
-                  AND table_name <> 'flyway_schema_history'
+                AND table_name <> 'flyway_schema_history'
                 """, Integer.class);
 
-        assertThat(applicationTableCount).isEqualTo(15);
+        assertThat(applicationTableCount).isEqualTo(14);
+
         assertThat(genreRepository.findAll()).isEmpty();
 
-        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
-        Long difficultyId = jdbcTemplate.queryForObject(
-                "select id from dev_difficulty where name = ?", Long.class, "Medium");
         jdbcTemplate.update("""
                 insert into gamedata
-                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
-                values (?, ?, ?, ?, ?)
-                """, "First game", 2, false, "First game", difficultyId);
+                        (descripcion, dev_numbers, jam, name)
+                values (?, ?, ?, ?)
+                """,
+                "First game",
+                2,
+                false,
+                "First game"
+        );
+
         jdbcTemplate.update("""
                 insert into gamedata
-                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
-                values (?, ?, ?, ?, ?)
-                """, "Second game", 3, false, "Second game", difficultyId);
-        assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from gamedata where dev_difficulty_id = ?",
-                Integer.class,
-                difficultyId)).isEqualTo(2);
+                        (descripcion, dev_numbers, jam, name)
+                values (?, ?, ?, ?)
+                """,
+                "Second game",
+                3,
+                false,
+                "Second game"
+        );
+
+        Integer gameCount = jdbcTemplate.queryForObject(
+                "select count(*) from gamedata",
+                Integer.class
+        );
+
+        assertThat(gameCount).isEqualTo(2);
     }
 
     @Test
@@ -187,15 +200,15 @@ class MySqlMigrationIT {
 
     @Test
     void gameSearchRunsAgainstMySqlWithCombinedFiltersAndDetailedLoading() {
-        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Advanced");
+        //jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Advanced");
         jdbcTemplate.update("insert into game_genres (name) values (?)", "Strategy");
-        Long difficultyId = id("dev_difficulty", "Advanced");
+        //Long difficultyId = id("dev_difficulty", "Advanced");
         Long genreId = id("game_genres", "Strategy");
         jdbcTemplate.update("""
                 insert into gamedata
-                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
-                values (?, ?, ?, ?, ?)
-                """, "Built at a jam", 4, true, "Jam Project", difficultyId);
+                    (descripcion, dev_numbers, jam, name)
+                values (?, ?, ?, ?)
+                """, "Built at a jam", 4, true, "Jam Project");
         Long gameId = id("gamedata", "Jam Project");
         jdbcTemplate.update(
                 "insert into mygames_genres (mygame_id, genre_id) values (?, ?)",
@@ -220,7 +233,7 @@ class MySqlMigrationIT {
 
     @Test
     void gameHierarchyQueriesRunAgainstMySqlWithoutUnnecessaryLoading() {
-        jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
+        //jdbcTemplate.update("insert into dev_difficulty (name) values (?)", "Medium");
         jdbcTemplate.update("insert into programtool_type (name) values (?)", "Engine");
         jdbcTemplate.update("insert into program_lang (name) values (?)", "Java");
         jdbcTemplate.update("insert into platform (name) values (?)", "Windows");
@@ -229,7 +242,7 @@ class MySqlMigrationIT {
                 "insert into server_hostimage (imagepath, name) values (?, ?)",
                 "mediafire.png", "MediaFire");
 
-        Long difficultyId = id("dev_difficulty", "Medium");
+        //Long difficultyId = id("dev_difficulty", "Medium");
         Long typeId = id("programtool_type", "Engine");
         Long languageId = id("program_lang", "Java");
         Long platformId = id("platform", "Windows");
@@ -238,14 +251,14 @@ class MySqlMigrationIT {
 
         jdbcTemplate.update("""
                 insert into gamedata
-                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
-                values (?, ?, ?, ?, ?)
-                """, "First game", 2, false, "First Game", difficultyId);
+                    (descripcion, dev_numbers, jam, name)
+                values (?, ?, ?, ?)
+                """, "First game", 2, false, "First Game");
         jdbcTemplate.update("""
                 insert into gamedata
-                    (descripcion, dev_numbers, jam, name, dev_difficulty_id)
-                values (?, ?, ?, ?, ?)
-                """, "Second game", 2, false, "Second Game", difficultyId);
+                    (descripcion, dev_numbers, jam, name)
+                values (?, ?, ?, ?)
+                """, "Second game", 2, false, "Second Game");
         Long firstGameId = id("gamedata", "First Game");
         Long secondGameId = id("gamedata", "Second Game");
 
