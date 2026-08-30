@@ -36,6 +36,8 @@ services:
       MYSQL_USER: ${DB_USERNAME:-nitros}
       MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    ports:
+    - "${DB_PORT:-3306}:3306"  
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
