@@ -1,0 +1,14 @@
+aws_region       = "eu-west-1"
+github_owner     = "Nitros64"
+github_repository = "nitros-games-backend"
+
+# The ECR publisher role trusts only this branch.
+github_branch = "main"
+
+additional_tags = {
+  Environment = "shared"
+  Repository  = "Nitros64/nitros-games-backend"
+}
+
+# If this AWS account already trusts GitHub Actions, reuse that single provider:
+# existing_github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
