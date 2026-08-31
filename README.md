@@ -406,9 +406,16 @@ consultas de repositorio, incluidas las cargas detalladas y jerárquicas de
 `game`. La suite H2 también controla el número de sentencias de estas consultas
 para detectar regresiones N+1.
 
-GitHub Actions ejecuta en cada `push` y pull request hacia `main` la suite H2,
-la verificación MySQL/Testcontainers y la construcción de la imagen Docker. El
-workflow también puede iniciarse manualmente desde la pestaña Actions.
+El workflow `CI` ejecuta en cada `push` y pull request hacia `main` las
+validaciones de Terraform, la suite H2, la verificación MySQL/Testcontainers y
+la construcción local de la imagen Docker. CI no recibe credenciales AWS ni
+publica o despliega imágenes.
+
+El workflow `CD - Staging` se inicia manualmente y recibe el SHA completo de un
+commit integrado en `main`. Antes de publicar en ECR comprueba que ese commit
+tenga un CI exitoso y que la instancia de staging esté online en Systems
+Manager. Consulta [la guía de staging](infra/terraform/staging/README.md) para
+iniciarlo y detener la infraestructura cuando no se use.
 
 ## Observabilidad y operación
 

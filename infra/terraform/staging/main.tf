@@ -228,6 +228,7 @@ data "aws_iam_policy_document" "github_staging_deploy" {
     sid    = "ReadDeploymentResult"
     effect = "Allow"
     actions = [
+      "ssm:DescribeInstanceInformation",
       "ssm:GetCommandInvocation",
       "ssm:ListCommandInvocations"
     ]
