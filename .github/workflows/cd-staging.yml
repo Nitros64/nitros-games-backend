@@ -1,0 +1,296 @@
+name: CD - Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character SHA from main to publish and deploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-staging
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate release and staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+    outputs:
+      commit_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      # CD debe lanzarse desde main. Así el subject OIDC coincide con la
+      # confianza exacta configurada en los roles IAM.
+      - name: Validate workflow context and variables
+        env:
+          AWS_STAGING_DEPLOY_ROLE_ARN: ${{ vars.AWS_STAGING_DEPLOY_ROLE_ARN }}
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main"
+          test -n "$AWS_REGION"
+          test -n "$STAGING_INSTANCE_ID"
+          test -n "$AWS_STAGING_DEPLOY_ROLE_ARN"
+          if [[ ! "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "commit_sha must be a full lowercase 40-character Git SHA." >&2
+            exit 64
+          fi
+
+      # La API de GitHub impide desplegar commits de PR o ramas no integradas.
+      # Solo acepta el HEAD actual de main o uno de sus antecesores.
+      - name: Verify commit belongs to main and passed CI
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          comparison="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/compare/${REQUESTED_SHA}...main" \
+            --jq '.status')"
+          if [[ "$comparison" != "ahead" && "$comparison" != "identical" ]]; then
+            echo "The requested commit is not part of main." >&2
+            exit 65
+          fi
+
+          ci_conclusion="$(gh run list \
+            --workflow ci.yml \
+            --branch main \
+            --commit "$REQUESTED_SHA" \
+            --event push \
+            --limit 1 \
+            --json conclusion \
+            --jq '.[0].conclusion // ""')"
+          if [[ "$ci_conclusion" != "success" ]]; then
+            echo "The requested commit does not have a successful main CI run." >&2
+            exit 66
+          fi
+
+          echo "sha=$REQUESTED_SHA" >> "$GITHUB_OUTPUT"
+
+      # Obtiene una sesión efímera que solo permite consultar y desplegar sobre
+      # la instancia de staging administrada por Terraform.
+      - name: Configure AWS staging credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_STAGING_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-staging-preflight-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Detiene el CD antes de construir o publicar si EC2 está apagada o aún
+      # no está registrada como Online en Systems Manager.
+      - name: Require staging to be online
+        run: |
+          ping_status="$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$STAGING_INSTANCE_ID" \
+            --query 'InstanceInformationList[0].PingStatus' \
+            --output text)"
+          if [[ "$ping_status" != "Online" ]]; then
+            echo "Staging is not Online in SSM (status: $ping_status). Start EC2 and retry CD." >&2
+            exit 69
+          fi
+
+  publish:
+    name: Publish selected image to ECR
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+      IMAGE_SHA: ${{ needs.preflight.outputs.commit_sha }}
+
+    steps:
+      # Comprueba las variables del repositorio antes de solicitar credenciales.
+      - name: Validate publishing variables
+        env:
+          AWS_ECR_PUBLISH_ROLE_ARN: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$ECR_REPOSITORY"
+          test -n "$AWS_ECR_PUBLISH_ROLE_ARN"
+
+      # Descarga el commit validado, no necesariamente el HEAD actual de main.
+      - name: Check out selected commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.IMAGE_SHA }}
+          persist-credentials: false
+
+      # Intercambia el token OIDC por el rol limitado a publicar en un único ECR.
+      - name: Configure AWS publishing credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-ecr-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Hace idempotentes las repeticiones: una etiqueta SHA inmutable existente
+      # se reutiliza y nunca se intenta sobrescribir.
+      - name: Check whether the selected image already exists
+        id: image
+        run: |
+          image_count="$(aws ecr batch-get-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_SHA" \
+            --query 'length(images)' \
+            --output text)"
+          if [[ "$image_count" = "0" ]]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image $IMAGE_SHA already exists; publication is skipped."
+          fi
+
+      # Solicita un login Docker temporal únicamente si hay que publicar.
+      - name: Log in to Amazon ECR
+        if: steps.image.outputs.exists != 'true'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # Configura Buildx y la caché reutilizada por CI.
+      - name: Set up Docker Buildx
+        if: steps.image.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      # Construye y publica exclusivamente la etiqueta SHA seleccionada.
+      - name: Build and push selected image
+        if: steps.image.outputs.exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_SHA }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.IMAGE_SHA }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy staging through SSM
+    needs:
+      - preflight
+      - publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+      STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
+      IMAGE_SHA: ${{ needs.preflight.outputs.commit_sha }}
+
+    steps:
+      # Descarga Compose y deploy.sh desde el mismo commit seleccionado.
+      - name: Check out selected commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.IMAGE_SHA }}
+          persist-credentials: false
+
+      # Asume el rol limitado a SSM sobre la instancia de staging.
+      - name: Configure AWS deployment credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_STAGING_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-staging-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Repite la comprobación porque EC2 podría detenerse durante el build.
+      - name: Confirm staging is still online
+        run: |
+          ping_status="$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$STAGING_INSTANCE_ID" \
+            --query 'InstanceInformationList[0].PingStatus' \
+            --output text)"
+          if [[ "$ping_status" != "Online" ]]; then
+            echo "Staging stopped before deployment (status: $ping_status)." >&2
+            exit 69
+          fi
+
+      # Envía el runtime mediante SSM, espera el resultado, muestra sus logs y
+      # exige que el smoke test de readiness finalice correctamente.
+      - name: Deploy immutable image and run smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          app_image="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_SHA}"
+
+          tar --create --gzip --file staging-deploy.tgz \
+            --directory deploy/staging compose.yaml deploy.sh
+          bundle="$(base64 --wrap=0 staging-deploy.tgz)"
+
+          parameters="$(jq --compact-output --null-input \
+            --arg bundle "$bundle" \
+            --arg image "$app_image" \
+            --arg region "$AWS_REGION" \
+            '{commands: [
+              "set -euo pipefail",
+              "install -d -m 0750 /opt/nitros-games",
+              ("printf %s " + ($bundle | @sh) + " | base64 --decode > /tmp/nitros-games-deploy.tgz"),
+              "tar --extract --gzip --file /tmp/nitros-games-deploy.tgz --directory /opt/nitros-games",
+              "chmod 0750 /opt/nitros-games/deploy.sh",
+              ("/opt/nitros-games/deploy.sh " + ($image | @sh) + " " + ($region | @sh)),
+              "rm -f /tmp/nitros-games-deploy.tgz"
+            ]}')"
+
+          command_id="$(aws ssm send-command \
+            --instance-ids "$STAGING_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${IMAGE_SHA} to staging" \
+            --timeout-seconds 600 \
+            --parameters "$parameters" \
+            --query Command.CommandId \
+            --output text)"
+
+          status="Pending"
+          for attempt in $(seq 1 120); do
+            status="$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$STAGING_INSTANCE_ID" \
+              --query Status \
+              --output text 2>/dev/null || true)"
+            case "$status" in
+              Success|Cancelled|Failed|TimedOut) break ;;
+            esac
+            sleep 5
+          done
+
+          invocation="$(aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$STAGING_INSTANCE_ID" \
+            --output json)"
+          echo "### Staging deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${IMAGE_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SSM command: \`${command_id}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: \`${status}\`" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "----- remote stdout -----"
+          jq --raw-output '.StandardOutputContent' <<< "$invocation"
+          echo "----- remote stderr -----"
+          jq --raw-output '.StandardErrorContent' <<< "$invocation"
+
+          if [[ "$status" != "Success" ]]; then
+            echo "Staging deployment failed with status: $status" >&2
+            exit 1
+          fi

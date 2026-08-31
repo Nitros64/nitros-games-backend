@@ -9,6 +9,7 @@ on:
       - main
   workflow_dispatch:
 
+# CI solo lee el repositorio. No puede solicitar tokens OIDC ni modificar AWS.
 permissions:
   contents: read
 
@@ -32,31 +33,29 @@ jobs:
         working-directory: infra/terraform/${{ matrix.root }}
 
     steps:
-      # Descarga el commit exacto que disparó el workflow. Las credenciales no se
-      # conservan porque este job solo necesita leer el repositorio.
+      # Descarga el commit exacto que se está evaluando sin conservar las
+      # credenciales de GitHub en el directorio de trabajo.
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # Instala una versión fija de Terraform para que local y CI interpreten la
-      # infraestructura de la misma manera.
+      # Fija la misma versión de Terraform utilizada durante el desarrollo.
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.15.6"
 
-      # Comprueba que todos los archivos .tf siguen el formato estándar. No
-      # modifica archivos; falla si alguien olvidó ejecutar terraform fmt.
+      # Comprueba el formato estándar sin modificar ningún archivo.
       - name: Check Terraform formatting
         run: terraform fmt -check -recursive
 
-      # Descarga los providers fijados en .terraform.lock.hcl. El backend se
-      # desactiva porque CI solo valida y no debe leer ni modificar el estado.
+      # Descarga los providers fijados por cada lock file. No conecta con el
+      # estado real ni recibe credenciales AWS.
       - name: Initialize Terraform without a backend
         run: terraform init -backend=false -input=false
 
-      # Verifica referencias, tipos, recursos y sintaxis sin crear nada en AWS.
+      # Valida sintaxis, tipos y relaciones entre los recursos declarados.
       - name: Validate Terraform
         run: terraform validate -no-color
 
@@ -72,14 +71,13 @@ jobs:
           - mysql
 
     steps:
-      # Cada variante de la matriz obtiene una copia limpia del mismo commit.
+      # Cada variante obtiene una copia limpia del mismo commit.
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # Instala Java 21 y reutiliza la caché local de Maven para reducir el
-      # tiempo dedicado a descargar dependencias en ejecuciones posteriores.
+      # Instala Java 21 y reutiliza la caché de dependencias Maven.
       - name: Set up Java 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
@@ -87,19 +85,17 @@ jobs:
           java-version: "21"
           cache: maven
 
-      # Los permisos de ejecución de archivos no siempre se conservan al pasar
-      # de Windows a Linux; este paso permite ejecutar el Maven Wrapper.
+      # Garantiza que Linux pueda ejecutar el Maven Wrapper del repositorio.
       - name: Make Maven Wrapper executable
         run: chmod +x mvnw
 
-      # Ejecuta compilación y suite normal sobre H2. La condición hace que este
-      # comando se ejecute únicamente en la variante h2 de la matriz.
+      # Ejecuta la suite rápida con H2 únicamente en su variante de matriz.
       - name: Verify with H2
         if: matrix.database == 'h2'
         run: ./mvnw -B -ntp clean verify
 
-      # Activa el perfil de integración: Testcontainers inicia MySQL y valida
-      # las migraciones Flyway y consultas contra el motor usado en producción.
+      # Usa Testcontainers con MySQL para validar Flyway, JPA y consultas sobre
+      # el mismo motor que utiliza la aplicación desplegada.
       - name: Verify with MySQL and Testcontainers
         if: matrix.database == 'mysql'
         run: ./mvnw -B -ntp clean verify -Pmysql-it
@@ -107,28 +103,22 @@ jobs:
   docker:
     name: Docker image
     needs: maven
-    # En pull requests y ejecuciones manuales valida la imagen sin publicarla.
-    # Un push a main usa el job publish para construirla y enviarla a ECR una
-    # sola vez.
-    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
-      # Descarga de nuevo el commit después de que Maven haya terminado. Los
-      # jobs son máquinas aisladas y no comparten su directorio de trabajo.
+      # Los jobs son aislados; descarga nuevamente el commit ya probado.
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # Prepara Docker Buildx, que permite usar el builder moderno y la caché
-      # remota de GitHub Actions definida en el siguiente paso.
+      # Activa el builder moderno y la caché compartida de GitHub Actions.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      # Construye la imagen de producción y verifica el Dockerfile. push:false
-      # garantiza que un PR o este CI todavía no publique imágenes externas.
+      # Verifica el Dockerfile y el empaquetado. push:false garantiza que CI no
+      # publica imágenes ni contacta con AWS.
       - name: Build application image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -137,207 +127,3 @@ jobs:
           tags: nitros-games-backend:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  publish:
-    name: Publish image to ECR
-    needs:
-      - terraform
-      - maven
-    # Solo los commits ya integrados en main pueden solicitar credenciales AWS.
-    # Los PR y las ejecuciones manuales nunca entran en este job.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
-
-    steps:
-      # Comprueba pronto que el repositorio tiene las variables creadas por el
-      # bootstrap. Así un error de configuración no parece un fallo de AWS.
-      - name: Validate repository variables
-        env:
-          AWS_ECR_PUBLISH_ROLE_ARN: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
-        run: |
-          test -n "$AWS_REGION"
-          test -n "$ECR_REPOSITORY"
-          test -n "$AWS_ECR_PUBLISH_ROLE_ARN"
-
-      # Descarga exactamente el merge commit cuyo SHA se usará como etiqueta.
-      - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      # Intercambia el token OIDC efímero de GitHub por una sesión corta del rol
-      # IAM. No existen access keys de AWS almacenadas como secrets.
-      - name: Configure AWS credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          role-to-assume: ${{ vars.AWS_ECR_PUBLISH_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-ecr-${{ github.run_id }}
-          mask-aws-account-id: true
-
-      # Una repetición del mismo workflow usa el mismo SHA. Si esa imagen ya
-      # existe, evita chocar con las etiquetas inmutables de ECR.
-      - name: Check whether the commit image already exists
-        id: image
-        run: |
-          image_count="$(aws ecr batch-get-image \
-            --repository-name "$ECR_REPOSITORY" \
-            --image-ids imageTag="$GITHUB_SHA" \
-            --query 'length(images)' \
-            --output text)"
-          if [ "$image_count" = "0" ]; then
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image for commit $GITHUB_SHA already exists; nothing to publish."
-          fi
-
-      # Obtiene de ECR un login Docker temporal. Solo se necesita cuando aún no
-      # existe una imagen para este commit.
-      - name: Log in to Amazon ECR
-        if: steps.image.outputs.exists != 'true'
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
-
-      # Prepara Buildx y la caché de GitHub para reconstruir con rapidez las
-      # capas que ya fueron validadas durante los pull requests.
-      - name: Set up Docker Buildx
-        if: steps.image.outputs.exists != 'true'
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      # Publica una sola etiqueta: el SHA completo e inmutable del merge commit.
-      # No se usa latest, por lo que un despliegue o rollback siempre es exacto.
-      - name: Build and push commit image
-        if: steps.image.outputs.exists != 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy-staging:
-    name: Deploy staging through SSM
-    needs: publish
-    # El despliegue comparte la misma frontera que la publicación: únicamente
-    # un push ya integrado en main puede solicitar una sesión AWS.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
-      STAGING_INSTANCE_ID: ${{ vars.STAGING_INSTANCE_ID }}
-
-    steps:
-      # Falla antes de autenticarse si falta alguna salida de Terraform en las
-      # variables del repositorio.
-      - name: Validate staging variables
-        env:
-          AWS_STAGING_DEPLOY_ROLE_ARN: ${{ vars.AWS_STAGING_DEPLOY_ROLE_ARN }}
-        run: |
-          test -n "$AWS_REGION"
-          test -n "$ECR_REPOSITORY"
-          test -n "$STAGING_INSTANCE_ID"
-          test -n "$AWS_STAGING_DEPLOY_ROLE_ARN"
-
-      # Obtiene Compose y el script exactamente desde el merge commit que se
-      # está desplegando; no descarga archivos mutables desde main.
-      - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      # Asume un rol distinto del publicador. Este rol solo puede ejecutar el
-      # documento SSM permitido sobre la única instancia de staging.
-      - name: Configure AWS deployment credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          role-to-assume: ${{ vars.AWS_STAGING_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-staging-${{ github.run_id }}
-          mask-aws-account-id: true
-
-      # Empaqueta los dos archivos de runtime y los entrega como payload base64
-      # a AWS-RunShellScript. La instancia genera y conserva allí las claves de
-      # MySQL, por lo que nunca atraviesan GitHub ni aparecen en los logs.
-      - name: Deploy immutable image and run smoke test
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          account_id="$(aws sts get-caller-identity --query Account --output text)"
-          app_image="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${GITHUB_SHA}"
-
-          tar --create --gzip --file staging-deploy.tgz \
-            --directory deploy/staging compose.yaml deploy.sh
-          bundle="$(base64 --wrap=0 staging-deploy.tgz)"
-
-          parameters="$(jq --compact-output --null-input \
-            --arg bundle "$bundle" \
-            --arg image "$app_image" \
-            --arg region "$AWS_REGION" \
-            '{commands: [
-              "set -euo pipefail",
-              "install -d -m 0750 /opt/nitros-games",
-              ("printf %s " + ($bundle | @sh) + " | base64 --decode > /tmp/nitros-games-deploy.tgz"),
-              "tar --extract --gzip --file /tmp/nitros-games-deploy.tgz --directory /opt/nitros-games",
-              "chmod 0750 /opt/nitros-games/deploy.sh",
-              ("/opt/nitros-games/deploy.sh " + ($image | @sh) + " " + ($region | @sh)),
-              "rm -f /tmp/nitros-games-deploy.tgz"
-            ]}')"
-
-          command_id="$(aws ssm send-command \
-            --instance-ids "$STAGING_INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --comment "Deploy ${GITHUB_SHA} to staging" \
-            --timeout-seconds 600 \
-            --parameters "$parameters" \
-            --query Command.CommandId \
-            --output text)"
-
-          status="Pending"
-          for attempt in $(seq 1 120); do
-            status="$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$STAGING_INSTANCE_ID" \
-              --query Status \
-              --output text 2>/dev/null || true)"
-            case "$status" in
-              Success|Cancelled|Failed|TimedOut) break ;;
-            esac
-            sleep 5
-          done
-
-          invocation="$(aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$STAGING_INSTANCE_ID" \
-            --output json)"
-          echo "### Staging deployment" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Image: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- SSM command: \`${command_id}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: \`${status}\`" >> "$GITHUB_STEP_SUMMARY"
-
-          echo "----- remote stdout -----"
-          jq --raw-output '.StandardOutputContent' <<< "$invocation"
-          echo "----- remote stderr -----"
-          jq --raw-output '.StandardErrorContent' <<< "$invocation"
-
-          if [[ "$status" != "Success" ]]; then
-            echo "Staging deployment failed with status: $status" >&2
-            exit 1
-          fi

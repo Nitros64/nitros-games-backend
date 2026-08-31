@@ -54,3 +54,21 @@ terraform output -raw aws_region
 
 These values become `STAGING_INSTANCE_ID`, `AWS_STAGING_DEPLOY_ROLE_ARN` and
 `AWS_REGION` repository variables in the deployment increment.
+
+## Manual deployment
+
+CI never publishes to AWS. Start the stopped instance first, wait until it is
+`Online` in Systems Manager, and then dispatch `CD - Staging` from `main` with
+the full SHA of a commit that already has a successful `main` CI run:
+
+```powershell
+gh workflow run cd-staging.yml --ref main -f commit_sha=<40-character-main-sha>
+```
+
+The workflow verifies the commit and staging availability before building or
+publishing. It reuses an existing immutable ECR image for the SHA when possible,
+deploys through SSM, and requires the remote readiness smoke test to pass.
+
+Stopping EC2 prevents deployments but does not affect CI. It preserves the EBS
+root disk and its Docker volumes; `terraform destroy` removes that temporary
+data permanently.
