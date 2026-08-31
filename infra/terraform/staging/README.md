@@ -71,4 +71,7 @@ deploys through SSM, and requires the remote readiness smoke test to pass.
 
 Stopping EC2 prevents deployments but does not affect CI. It preserves the EBS
 root disk and its Docker volumes; `terraform destroy` removes that temporary
-data permanently.
+data permanently. AWS releases the automatically assigned public IPv4 address
+while the instance is stopped and assigns a new one at the next start. Terraform
+intentionally ignores that transient difference so a plan never replaces the
+instance merely because it is stopped.

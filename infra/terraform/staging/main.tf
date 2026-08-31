@@ -178,6 +178,13 @@ resource "aws_instance" "staging" {
     Name = local.name_prefix
   }
 
+  # EC2 releases its automatically assigned public IPv4 address while stopped.
+  # Ignoring that computed drift prevents Terraform from replacing the instance;
+  # a new temporary address is assigned when it starts again.
+  lifecycle {
+    ignore_changes = [associate_public_ip_address]
+  }
+
   depends_on = [aws_route.internet]
 }
 
