@@ -63,6 +63,7 @@ jobs:
           fi
 
           ci_conclusion="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
             --workflow ci.yml \
             --branch main \
             --commit "$REQUESTED_SHA" \
