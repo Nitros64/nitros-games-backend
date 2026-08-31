@@ -64,6 +64,13 @@ The readiness group includes the database connection. The liveness group does
 not include MySQL, preventing an external database outage from causing an
 application restart loop. Health details are never exposed.
 
+The staging deployment records the currently active immutable image before
+switching versions. If the candidate does not pass readiness, the script
+restores the previous image, waits for it to become healthy and reports the
+rollback in the GitHub Actions summary. The workflow still fails so the rejected
+release remains visible. Database migrations must remain backward compatible:
+rolling back the application image does not reverse Flyway migrations.
+
 Inspect logs and stop the stack without deleting data:
 
 ```shell

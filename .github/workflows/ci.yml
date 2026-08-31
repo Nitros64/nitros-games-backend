@@ -113,6 +113,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # Simula un despliegue saludable y otro con readiness fallido. El segundo
+      # debe restaurar la imagen anterior antes de devolver el error esperado.
+      - name: Test staging deployment rollback
+        run: bash deploy/staging/deploy_test.sh
+
       # Activa el builder moderno y la caché compartida de GitHub Actions.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0

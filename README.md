@@ -415,7 +415,9 @@ El workflow `CD - Staging` se inicia manualmente y recibe el SHA completo de un
 commit integrado en `main`. Antes de publicar en ECR comprueba que ese commit
 tenga un CI exitoso y que la instancia de staging esté online en Systems
 Manager. Consulta [la guía de staging](infra/terraform/staging/README.md) para
-iniciarlo y detener la infraestructura cuando no se use.
+iniciarlo y detener la infraestructura cuando no se use. El despliegue conserva
+la imagen activa y la restaura automáticamente si la nueva versión no supera
+readiness; el workflow permanece fallido para que el incidente sea visible.
 
 ## Observabilidad y operación
 
