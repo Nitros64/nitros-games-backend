@@ -39,3 +39,5 @@ causes and stack traces must never be serialized to clients.
 
 Application code should throw a meaningful application exception and let the
 global handler translate it. Controllers must not build JSON strings manually.
+
+ESTO ES UN TEST PARA la rama test/staging-pipeline
