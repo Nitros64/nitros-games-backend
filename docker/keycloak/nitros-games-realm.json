@@ -79,6 +79,32 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "nitros-games-reader-cli",
+      "name": "Nitros Games read-only CLI demo",
+      "description": "Development-only client for verifying authenticated requests without ADMIN",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${NITROS_GAMES_READER_CLI_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "nitros-games-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "nitros-games-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -89,6 +115,12 @@
       "realmRoles": [
         "ADMIN"
       ]
+    },
+    {
+      "username": "service-account-nitros-games-reader-cli",
+      "enabled": true,
+      "serviceAccountClientId": "nitros-games-reader-cli",
+      "realmRoles": []
     }
   ]
 }

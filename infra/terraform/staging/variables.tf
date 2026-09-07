@@ -31,9 +31,9 @@ variable "environment" {
 }
 
 variable "instance_type" {
-  description = "EC2 size. t3.small provides enough memory for the API and MySQL demo stack."
+  description = "EC2 size. t3.medium provides enough memory for the API, MySQL and Keycloak staging stack."
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 
   validation {
     condition     = contains(["t3.small", "t3.medium"], var.instance_type)

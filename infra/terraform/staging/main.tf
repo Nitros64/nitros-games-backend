@@ -25,6 +25,15 @@ locals {
     data.aws_caller_identity.current.account_id,
     var.ecr_repository_name
   )
+  identity_secret_parameter_names = toset([
+    "/nitros-games/staging/keycloak/admin-password",
+    "/nitros-games/staging/keycloak/admin-client-secret",
+    "/nitros-games/staging/keycloak/reader-client-secret"
+  ])
+  identity_secret_parameter_arns = [
+    for parameter_name in local.identity_secret_parameter_names :
+    "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${parameter_name}"
+  ]
 }
 
 resource "aws_vpc" "staging" {
@@ -141,6 +150,21 @@ resource "aws_iam_role_policy" "instance_ecr_pull" {
   policy = data.aws_iam_policy_document.instance_ecr_pull.json
 }
 
+data "aws_iam_policy_document" "instance_identity_secrets" {
+  statement {
+    sid       = "ReadStagingIdentitySecrets"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = local.identity_secret_parameter_arns
+  }
+}
+
+resource "aws_iam_role_policy" "instance_identity_secrets" {
+  name   = "read-${local.name_prefix}-identity-secrets"
+  role   = aws_iam_role.instance.id
+  policy = data.aws_iam_policy_document.instance_identity_secrets.json
+}
+
 resource "aws_iam_instance_profile" "staging" {
   name = "${local.name_prefix}-instance"
   role = aws_iam_role.instance.name
@@ -182,7 +206,10 @@ resource "aws_instance" "staging" {
   # Ignoring that computed drift prevents Terraform from replacing the instance;
   # a new temporary address is assigned when it starts again.
   lifecycle {
-    ignore_changes = [associate_public_ip_address]
+    # The public SSM parameter always points at the latest Amazon Linux AMI.
+    # Replacing disposable staging on every AMI publication would also destroy
+    # its root EBS data, so AMI upgrades must be deliberate rebuilds.
+    ignore_changes = [ami, associate_public_ip_address]
   }
 
   depends_on = [aws_route.internet]

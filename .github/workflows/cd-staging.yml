@@ -237,8 +237,16 @@ jobs:
           account_id="$(aws sts get-caller-identity --query Account --output text)"
           app_image="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_SHA}"
 
-          tar --create --gzip --file staging-deploy.tgz \
-            --directory deploy/staging compose.yaml deploy.sh
+          # Build one versioned bundle from the selected SHA. The E2E rehearsal
+          # is transported for later manual SSM execution; CD never runs it.
+          install -d staging-bundle/keycloak staging-bundle/e2e
+          install -m 0644 deploy/staging/compose.yaml staging-bundle/compose.yaml
+          install -m 0750 deploy/staging/deploy.sh staging-bundle/deploy.sh
+          install -m 0644 docker/keycloak/nitros-games-realm.json \
+            staging-bundle/keycloak/nitros-games-realm.json
+          install -m 0750 e2e/release-rehearsal.sh \
+            staging-bundle/e2e/release-rehearsal.sh
+          tar --create --gzip --file staging-deploy.tgz --directory staging-bundle .
           bundle="$(base64 --wrap=0 staging-deploy.tgz)"
 
           parameters="$(jq --compact-output --null-input \
