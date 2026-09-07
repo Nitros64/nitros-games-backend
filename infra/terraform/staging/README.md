@@ -3,10 +3,23 @@
 This Terraform root creates a private-by-default, single-host staging target:
 
 - a dedicated VPC, public subnet, route table and internet gateway;
-- one `t3.small` Amazon Linux 2023 instance with an encrypted 16 GiB root disk;
+- one `t3.medium` Amazon Linux 2023 instance with an encrypted 16 GiB root disk;
 - a security group with no inbound rules;
 - an EC2 role for Systems Manager and read-only access to the application ECR repository;
 - a GitHub OIDC role restricted to `main` and to SSM deployment commands for this instance.
+
+The EC2 role can also read only these staging identity parameters:
+
+- `/nitros-games/staging/keycloak/admin-password`
+- `/nitros-games/staging/keycloak/admin-client-secret`
+- `/nitros-games/staging/keycloak/reader-client-secret`
+
+Create them as standard `SecureString` parameters before the first
+identity-enabled deployment. Do not put their values in Terraform variables,
+because Terraform values are recorded in state. Use the AWS console or an input
+method that does not place plaintext values in shell history. The deployment
+reads them through the EC2 role and writes `/opt/nitros-games/.env` with mode
+`0600`.
 
 The public IPv4 address is used only for outbound access. SSH, the application
 port and MySQL are not reachable from the internet. Deployment and smoke tests
@@ -75,3 +88,9 @@ data permanently. AWS releases the automatically assigned public IPv4 address
 while the instance is stopped and assigns a new one at the next start. Terraform
 intentionally ignores that transient difference so a plan never replaces the
 instance merely because it is stopped.
+
+Terraform also preserves the AMI selected when the instance was created. The
+public SSM parameter tracks the latest Amazon Linux image, but silently
+following it would replace EC2 and destroy the disposable root volume. Perform
+an AMI upgrade only as an explicit staging rebuild after accepting that data
+loss.

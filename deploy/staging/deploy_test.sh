@@ -18,7 +18,13 @@ mkdir -p "$fake_bin"
 cat > "$fake_bin/aws" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'temporary-password\n'
+
+if [[ "$*" == *"ssm get-parameter"* ]]; then
+  printf '%s\n' "$*" >> "$FAKE_AWS_LOG"
+  printf 'test-identity-secret\n'
+else
+  printf 'temporary-registry-password\n'
+fi
 EOF
 
 cat > "$fake_bin/docker" <<'EOF'
@@ -77,9 +83,6 @@ DB_USERNAME=nitros
 DB_PASSWORD=test-password
 DB_ROOT_PASSWORD=test-root-password
 APP_SECURITY_ALLOWED_ORIGINS=http://localhost:4200
-OAUTH2_ISSUER_URI=https://identity.invalid/realms/nitros-games
-OAUTH2_JWK_SET_URI=https://identity.invalid/realms/nitros-games/protocol/openid-connect/certs
-OAUTH2_AUDIENCE=nitros-games-api
 APP_IMAGE=$previous_image
 EOF
 }
@@ -89,6 +92,7 @@ prepare_deployment "$success_directory"
 success_output="$test_root/success.out"
 PATH="$fake_bin:$PATH" \
 NITROS_GAMES_DEPLOYMENT_DIRECTORY="$success_directory" \
+FAKE_AWS_LOG="$test_root/success-aws.log" \
 FAKE_CURL_COUNT_FILE="$test_root/success-curl-count" \
 FAKE_CURL_FAILURES=0 \
   bash "$deploy_script" "$candidate_image" eu-west-1 > "$success_output" 2>&1
@@ -96,6 +100,18 @@ FAKE_CURL_FAILURES=0 \
 grep -q '^DEPLOYMENT_RESULT=success$' "$success_output"
 grep -q "^DEPLOYED_IMAGE=$candidate_image$" "$success_output"
 grep -q "^APP_IMAGE=$candidate_image$" "$success_directory/.env"
+grep -q '^KEYCLOAK_ADMIN_PASSWORD=test-identity-secret$' "$success_directory/.env"
+grep -q '^NITROS_GAMES_CLI_SECRET=test-identity-secret$' "$success_directory/.env"
+grep -q '^NITROS_GAMES_READER_CLI_SECRET=test-identity-secret$' "$success_directory/.env"
+grep -q '^OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games$' "$success_directory/.env"
+grep -q '^OAUTH2_JWK_SET_URI=http://keycloak:8080/realms/nitros-games/protocol/openid-connect/certs$' "$success_directory/.env"
+grep -q -- '--name /nitros-games/staging/keycloak/admin-password ' "$test_root/success-aws.log"
+grep -q -- '--name /nitros-games/staging/keycloak/admin-client-secret ' "$test_root/success-aws.log"
+grep -q -- '--name /nitros-games/staging/keycloak/reader-client-secret ' "$test_root/success-aws.log"
+if grep -q 'test-identity-secret' "$success_output"; then
+  echo "Identity secret was printed in deployment output." >&2
+  exit 1
+fi
 
 rollback_directory="$test_root/rollback"
 prepare_deployment "$rollback_directory"
@@ -103,6 +119,7 @@ rollback_output="$test_root/rollback.out"
 set +e
 PATH="$fake_bin:$PATH" \
 NITROS_GAMES_DEPLOYMENT_DIRECTORY="$rollback_directory" \
+FAKE_AWS_LOG="$test_root/rollback-aws.log" \
 FAKE_CURL_COUNT_FILE="$test_root/rollback-curl-count" \
 FAKE_CURL_FAILURES=1 \
   bash "$deploy_script" "$candidate_image" eu-west-1 > "$rollback_output" 2>&1
@@ -119,5 +136,9 @@ grep -q '^DEPLOYMENT_RESULT=rolled_back$' "$rollback_output"
 grep -q "^FAILED_IMAGE=$candidate_image$" "$rollback_output"
 grep -q "^RESTORED_IMAGE=$previous_image$" "$rollback_output"
 grep -q "^APP_IMAGE=$previous_image$" "$rollback_directory/.env"
+if grep -q 'test-identity-secret' "$rollback_output"; then
+  echo "Identity secret was printed in rollback output." >&2
+  exit 1
+fi
 
-echo "Staging deployment success and rollback tests passed."
+echo "Staging identity configuration, deployment success and rollback tests passed."

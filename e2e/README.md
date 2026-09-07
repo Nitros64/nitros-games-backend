@@ -85,6 +85,32 @@ Finally remove only the resources whose IDs were recorded by this rehearsal:
 The script deliberately does not restart containers. This keeps persistence
 checks visible and under operator control.
 
+## Staging through SSM
+
+The staging CD bundle installs this same script at
+`/opt/nitros-games/e2e/release-rehearsal.sh`; CD does not execute it. Run each
+phase manually in an `AWS-RunShellScript` command from `/opt/nitros-games` with:
+
+```bash
+export E2E_API_BASE_URL=http://127.0.0.1:8080
+export E2E_TOKEN_URL=http://127.0.0.1:8081/realms/nitros-games/protocol/openid-connect/token
+export E2E_STATE_FILE=/opt/nitros-games/e2e-state/<unique-run-id>.json
+./e2e/release-rehearsal.sh create
+```
+
+Use the same variables and state path for `verify` and `cleanup`. The script
+reads the two client secrets from the root-owned `/opt/nitros-games/.env`; do
+not include secret values in the SSM command.
+
+The full staging persistence sequence is:
+
+1. `create`, then `verify`.
+2. Restart only `api`, then `verify`.
+3. Restart only `mysql`, then `verify`.
+4. Restart only `keycloak`, then `verify`.
+5. Deploy a known-good immutable application SHA, then `verify`.
+6. `cleanup`.
+
 ## Controlled `tool_lang` fixture
 
 The application has no write endpoint for language/tool compatibility, while a
@@ -110,4 +136,5 @@ fixture and the uploaded image bytes in the Docker volume. There is no public
 endpoint for downloading image bytes, so that last assertion uses a read-only
 `test -f` inside the API container.
 
-This harness is local-only. It does not configure or test staging identity.
+The harness configures no identity provider itself. Local Compose or staging
+must already provide the documented clients and secrets.
