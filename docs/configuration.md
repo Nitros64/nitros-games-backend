@@ -58,8 +58,12 @@ environment or a secrets manager:
 - `OAUTH2_JWK_SET_URI`
 - `OAUTH2_AUDIENCE`
 
-`DB_URL` must use the TLS settings required by the production MySQL provider.
-Production validates the existing schema and never creates or updates it.
+`DB_URL` must retain the actual Amazon RDS DNS hostname and contain exactly one
+`sslMode=VERIFY_IDENTITY`. Production startup rejects weaker modes, IP addresses,
+non-RDS hosts, disabling the system truststore and runtime truststore overrides.
+The container truststore contains the verified RDS root used by the production
+instance. Production validates the existing schema and never creates or updates
+it.
 
 Optional pool settings are `DB_POOL_MIN_IDLE`, `DB_POOL_MAX_SIZE`,
 `DB_CONNECTION_TIMEOUT_MS` and `DB_VALIDATION_TIMEOUT_MS`.

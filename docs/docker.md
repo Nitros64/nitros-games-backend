@@ -2,9 +2,11 @@
 
 The repository includes a production-oriented multi-stage `Dockerfile` and a
 `compose.yaml` stack for the API and MySQL 8.4, plus an optional Keycloak
-development profile. The runtime image contains only the Java runtime and the
-packaged application. It runs as UID `10001`, uses a read-only root filesystem
-in Compose and writes host images only to a dedicated persistent volume.
+development profile. The runtime uses the digest-pinned Eclipse Temurin 21 JRE
+Alpine image. It contains the packaged application and the single Amazon RDS
+`eu-west-1` RSA2048 G1 root required by production. It runs as UID `10001`, uses
+a read-only root filesystem in Compose and writes host images only to a
+dedicated persistent volume.
 
 ## Local container stack
 
@@ -97,9 +99,17 @@ volumes and should only be used when that data is intentionally disposable.
 
 `compose.yaml` is suitable for a single-host deployment and local production
 validation. The internal MySQL connection disables TLS because traffic remains
-inside the Docker network. When using a managed or remote database, provide a
-TLS-enabled `DB_URL` and inject credentials through the platform's secret
-manager rather than an environment file.
+inside the Docker network. When using production RDS, `DB_URL` must contain its
+real DNS endpoint and exactly one `sslMode=VERIFY_IDENTITY`; application startup
+rejects weaker modes or a truststore override. Credentials are injected through
+the platform's secret manager rather than committed or baked into the image.
+
+During the image build, the official `eu-west-1` RDS root bundle is verified
+against a pinned SHA-256. The build extracts the first certificate and verifies
+its AWS-published SHA-1 thumbprint before importing only
+`rds-ca-rsa2048-g1` into the JVM truststore. Certificate download never occurs
+at application startup. When AWS changes the official bundle, update the pinned
+checksum only after reviewing its roots and the CA assigned to RDS.
 
 The bundled Keycloak uses `start-dev` and ephemeral storage; it is a local/demo
 identity provider, not a production topology. Production should supply a
