@@ -1,0 +1,10 @@
+aws_region           = "eu-west-1"
+project_name         = "nitros-games-backend"
+environment          = "production"
+mysql_engine_version = "8.4.10"
+
+final_snapshot_identifier = "nitros-games-backend-production-mysql-final"
+
+additional_tags = {
+  Repository = "Nitros64/nitros-games-backend"
+}
