@@ -135,6 +135,7 @@ evaluated against an external origin allowlist, and all otherwise unmatched
 routes are denied.
 
 The application is an OAuth2 Resource Server. It validates JWT issuer,
-signature, lifetime and audience, then maps Keycloak realm role `ADMIN` to the
-Spring authority used by feature policies. Authentication remains isolated in
-this module, so feature modules do not depend on Keycloak-specific contracts.
+signature, lifetime, access-token purpose, client identity and API targeting.
+The security module normalizes Keycloak realm roles, Cognito groups and the
+configured administrative M2M scope into the Spring authorities used by feature
+policies. Feature modules therefore remain independent of provider claims.

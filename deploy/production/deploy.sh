@@ -66,7 +66,10 @@ readonly bucket="$(read_config APP_STORAGE_HOST_IMAGES_S3_BUCKET)"
 readonly allowed_origins="$(read_config APP_SECURITY_ALLOWED_ORIGINS)"
 readonly issuer_uri="$(read_config OAUTH2_ISSUER_URI)"
 readonly jwk_set_uri="$(read_config OAUTH2_JWK_SET_URI)"
-readonly audience="$(read_config OAUTH2_AUDIENCE)"
+readonly resource_id="$(read_config OAUTH2_RESOURCE_ID)"
+readonly access_scope="$(read_config OAUTH2_ACCESS_SCOPE)"
+readonly admin_scope="$(read_config OAUTH2_ADMIN_SCOPE)"
+readonly allowed_client_ids="$(read_config OAUTH2_ALLOWED_CLIENT_IDS)"
 
 [[ "$db_url" == jdbc:mysql://*.rds.amazonaws.com:*\?*sslMode=VERIFY_IDENTITY* ]] || {
   echo "DB_URL must target the RDS DNS name and use sslMode=VERIFY_IDENTITY." >&2
@@ -107,7 +110,10 @@ trap 'unset db_password; [[ -z "${candidate_environment:-}" || ! -f "$candidate_
   write_env_line APP_SECURITY_ALLOWED_ORIGINS "$allowed_origins"
   write_env_line OAUTH2_ISSUER_URI "$issuer_uri"
   write_env_line OAUTH2_JWK_SET_URI "$jwk_set_uri"
-  write_env_line OAUTH2_AUDIENCE "$audience"
+  write_env_line OAUTH2_RESOURCE_ID "$resource_id"
+  write_env_line OAUTH2_ACCESS_SCOPE "$access_scope"
+  write_env_line OAUTH2_ADMIN_SCOPE "$admin_scope"
+  write_env_line OAUTH2_ALLOWED_CLIENT_IDS "$allowed_client_ids"
 } > "$candidate_environment"
 chmod 0600 "$candidate_environment"
 unset db_password

@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 
 import com.nitros64.nitros_games_backend.security.SecurityConfiguration;
 import com.nitros64.nitros_games_backend.security.SecurityProperties;
-import com.nitros64.nitros_games_backend.security.KeycloakRealmRoleConverter;
+import com.nitros64.nitros_games_backend.security.JwtApplicationAuthorityConverter;
+import com.nitros64.nitros_games_backend.security.JwtIdentityProperties;
+import com.nitros64.nitros_games_backend.security.JwtTrustValidator;
 
 class SecurityModuleStructureTests {
 
@@ -20,7 +22,9 @@ class SecurityModuleStructureTests {
         assertThat(List.of(
                 SecurityConfiguration.class,
                 SecurityProperties.class,
-                KeycloakRealmRoleConverter.class))
+                JwtIdentityProperties.class,
+                JwtApplicationAuthorityConverter.class,
+                JwtTrustValidator.class))
                 .allSatisfy(type -> assertThat(type.getPackageName())
                         .startsWith(SECURITY_PACKAGE));
     }

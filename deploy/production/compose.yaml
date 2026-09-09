@@ -19,7 +19,10 @@ services:
       APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS:?Set allowed origins}
       OAUTH2_ISSUER_URI: ${OAUTH2_ISSUER_URI:?Production identity is not configured}
       OAUTH2_JWK_SET_URI: ${OAUTH2_JWK_SET_URI:?Production identity is not configured}
-      OAUTH2_AUDIENCE: ${OAUTH2_AUDIENCE:?Production identity is not configured}
+      OAUTH2_RESOURCE_ID: ${OAUTH2_RESOURCE_ID:?Production identity is not configured}
+      OAUTH2_ACCESS_SCOPE: ${OAUTH2_ACCESS_SCOPE:?Production identity is not configured}
+      OAUTH2_ADMIN_SCOPE: ${OAUTH2_ADMIN_SCOPE:?Production identity is not configured}
+      OAUTH2_ALLOWED_CLIENT_IDS: ${OAUTH2_ALLOWED_CLIENT_IDS:?Production identity is not configured}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}

@@ -15,7 +15,7 @@ $env:SPRING_PROFILES_ACTIVE = "local"
 $env:DB_PASSWORD = "your-local-password"
 $env:OAUTH2_ISSUER_URI = "http://localhost:8081/realms/nitros-games"
 $env:OAUTH2_JWK_SET_URI = "http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs"
-$env:OAUTH2_AUDIENCE = "nitros-games-api"
+$env:OAUTH2_RESOURCE_ID = "nitros-games-api"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -26,7 +26,7 @@ export SPRING_PROFILES_ACTIVE=local
 export DB_PASSWORD=your-local-password
 export OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games
 export OAUTH2_JWK_SET_URI=http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs
-export OAUTH2_AUDIENCE=nitros-games-api
+export OAUTH2_RESOURCE_ID=nitros-games-api
 ./mvnw spring-boot:run
 ```
 
@@ -56,7 +56,10 @@ environment or a secrets manager:
 - `APP_SECURITY_ALLOWED_ORIGINS`
 - `OAUTH2_ISSUER_URI`
 - `OAUTH2_JWK_SET_URI`
-- `OAUTH2_AUDIENCE`
+- `OAUTH2_RESOURCE_ID`
+- `OAUTH2_ACCESS_SCOPE`
+- `OAUTH2_ADMIN_SCOPE`
+- `OAUTH2_ALLOWED_CLIENT_IDS`
 
 `DB_URL` must retain the actual Amazon RDS DNS hostname and contain exactly one
 `sslMode=VERIFY_IDENTITY`. Production startup rejects weaker modes, IP addresses,
@@ -118,15 +121,17 @@ file signature.
 ## HTTP security
 
 All `GET /api/**` endpoints remain public. `POST`, `PUT` and `DELETE` requests
-require a Bearer JWT whose `realm_access.roles` contains `ADMIN`. The resource
-server also preserves standard `SCOPE_` authorities and uses
-`preferred_username` as the authenticated principal when available.
+require a Bearer JWT mapped to `ROLE_ADMIN`. Keycloak realm roles and Cognito
+groups are normalized inside the security module; an exact administrative M2M
+scope can also grant that role. The resource server preserves standard
+`SCOPE_` authorities and uses the JWT `sub` as the stable principal.
 
-`OAUTH2_ISSUER_URI`, `OAUTH2_JWK_SET_URI` and `OAUTH2_AUDIENCE` are mandatory in
-production. Spring Security verifies the signature, issuer, time constraints
-and audience. Keeping the externally visible issuer separate from the internal
-JWK URL allows the Compose API to validate tokens issued as
-`http://localhost:8081` while resolving keys through the Docker network.
+The six `OAUTH2_*` identity values above are mandatory in production. Spring
+Security verifies signature, issuer, time constraints, access-token purpose,
+originating client and API targeting. Targeting succeeds only for the exact API
+audience or an exact configured API scope. Keeping the externally visible issuer
+separate from the internal JWK URL allows local Compose to validate Keycloak
+tokens issued as `http://localhost:8081` while resolving keys through Docker.
 
 Clients send `Authorization: Bearer <token>` on every protected request. The
 application creates no authentication session or cookie and disallows
