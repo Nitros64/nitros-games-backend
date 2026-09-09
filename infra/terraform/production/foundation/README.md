@@ -28,11 +28,18 @@ VPC 10.43.0.0/16
 The private data subnets do not assign public IP addresses. Their route tables
 contain no `0.0.0.0/0` route, Internet Gateway, NAT Gateway or NAT instance.
 
-## Local state for Delivery 8B.1
+## Remote state migration for Delivery 8B.2
 
-State remains local for this delivery. Do not create production data resources
-until a separate delivery has created a protected remote backend and migrated
-this state. Never commit `terraform.tfvars`, plan files or state files.
+Bootstrap owns a dedicated, protected S3 backend bucket. This root reserves the
+state key `production/foundation/terraform.tfstate` and enables native S3 state
+locking with `use_lockfile = true`. The bucket and region intentionally remain
+partial backend settings because backend blocks cannot use Terraform variables.
+
+Do not initialize this backend until the bootstrap bucket exists and the local
+state has been backed up. The approved migration command will provide the
+bucket and region through `-backend-config` and use `-migrate-state` to preserve
+the existing foundation state. Never commit `terraform.tfvars`, plan files,
+state files or state backups.
 
 ## Validate and review
 
