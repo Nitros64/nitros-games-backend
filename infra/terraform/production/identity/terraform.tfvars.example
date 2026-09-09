@@ -1,0 +1,7 @@
+# Override only after the final production frontend HTTPS domain is known.
+angular_callback_urls = ["https://nitrosgames64.com/auth/callback"]
+angular_logout_urls   = ["https://nitrosgames64.com/"]
+
+# The resource identifier is a stable OAuth identifier. It does not provision
+# DNS, an ALB, ACM or Route53 records.
+api_resource_identifier = "https://api.nitrosgames64.com"
