@@ -30,7 +30,7 @@ con límites comprobados mediante pruebas de arquitectura.
 - Spring MVC, Bean Validation y contratos HTTP basados en DTOs.
 - Spring Data JPA con Hibernate; las entidades no se exponen en la API.
 - MySQL 8.4.11 en producción y Flyway como propietario del esquema.
-- Spring Security OAuth2 Resource Server stateless con JWT y roles de Keycloak.
+- Spring Security OAuth2 Resource Server stateless con JWT y roles de aplicación.
 - Errores uniformes mediante RFC Problem Details (`application/problem+json`).
 - Subida segura de imágenes PNG, JPEG y GIF con verificación de firma.
 - Actuator, métricas Prometheus, logs JSON y correlación con `X-Request-ID`.
@@ -152,7 +152,7 @@ $env:SPRING_PROFILES_ACTIVE = "local"
 $env:DB_PASSWORD = "local-db-password"
 $env:OAUTH2_ISSUER_URI = "http://localhost:8081/realms/nitros-games"
 $env:OAUTH2_JWK_SET_URI = "http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs"
-$env:OAUTH2_AUDIENCE = "nitros-games-api"
+$env:OAUTH2_RESOURCE_ID = "nitros-games-api"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -163,7 +163,7 @@ export SPRING_PROFILES_ACTIVE=local
 export DB_PASSWORD=local-db-password
 export OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games
 export OAUTH2_JWK_SET_URI=http://localhost:8081/realms/nitros-games/protocol/openid-connect/certs
-export OAUTH2_AUDIENCE=nitros-games-api
+export OAUTH2_RESOURCE_ID=nitros-games-api
 ./mvnw spring-boot:run
 ```
 
@@ -319,11 +319,11 @@ la respuesta.
 ## Seguridad
 
 - `GET` y `HEAD` bajo `/api/**` son públicos.
-- `POST`, `PUT` y `DELETE` requieren un JWT con el rol de realm `ADMIN`.
+- `POST`, `PUT` y `DELETE` requieren un JWT con el rol de aplicación `ADMIN`.
 - La aplicación es stateless y no crea sesiones de autenticación.
 - CORS usa una allowlist explícita; los comodines están rechazados.
 - Actuator health es público y `/actuator/prometheus` requiere administrador.
-- El emisor, las claves JWK y la audiencia del token se validan explícitamente.
+- El emisor, las claves JWK, el cliente y el destino API se validan explícitamente.
 - En producción, los tokens deben enviarse exclusivamente mediante HTTPS.
 
 El realm de desarrollo incluye un cliente público `nitros-games-web` preparado
@@ -333,13 +333,17 @@ para Authorization Code con PKCE y el cliente operacional
 ```text
 OAUTH2_ISSUER_URI
 OAUTH2_JWK_SET_URI
-OAUTH2_AUDIENCE
+OAUTH2_RESOURCE_ID
+OAUTH2_ACCESS_SCOPE
+OAUTH2_ADMIN_SCOPE
+OAUTH2_ALLOWED_CLIENT_IDS
 APP_SECURITY_ALLOWED_ORIGINS
 ```
 
-El Keycloak de Compose ejecuta `start-dev`: facilita desarrollo y entrevistas,
-pero producción debe usar un proveedor OIDC gestionado o una instalación de
-Keycloak endurecida, persistente y publicada detrás de HTTPS.
+El Keycloak de Compose ejecuta `start-dev` y sigue siendo exclusivo de desarrollo
+y staging. Producción está diseñada para Cognito, sin introducir dependencias
+AWS en los módulos de negocio. Consulta
+`infra/terraform/production/identity/README.md` para el contrato completo.
 
 ## Base de datos
 

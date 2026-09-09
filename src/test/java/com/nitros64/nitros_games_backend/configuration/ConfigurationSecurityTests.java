@@ -52,13 +52,22 @@ class ConfigurationSecurityTests {
                 properties.getProperty("app.security.allowed-origins"));
         assertEquals(
                 "${OAUTH2_ISSUER_URI}",
-                properties.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri"));
+                properties.getProperty("app.security.jwt.issuer-uri"));
         assertEquals(
                 "${OAUTH2_JWK_SET_URI}",
-                properties.getProperty("spring.security.oauth2.resourceserver.jwt.jwk-set-uri"));
+                properties.getProperty("app.security.jwt.jwk-set-uri"));
         assertEquals(
-                "${OAUTH2_AUDIENCE}",
-                properties.getProperty("spring.security.oauth2.resourceserver.jwt.audiences[0]"));
+                "${OAUTH2_RESOURCE_ID}",
+                properties.getProperty("app.security.jwt.resource-id"));
+        assertEquals(
+                "${OAUTH2_ACCESS_SCOPE}",
+                properties.getProperty("app.security.jwt.access-scope"));
+        assertEquals(
+                "${OAUTH2_ADMIN_SCOPE}",
+                properties.getProperty("app.security.jwt.admin-scope"));
+        assertEquals(
+                "${OAUTH2_ALLOWED_CLIENT_IDS}",
+                properties.getProperty("app.security.jwt.allowed-client-ids"));
     }
 
     @Test

@@ -111,10 +111,10 @@ its AWS-published SHA-1 thumbprint before importing only
 at application startup. When AWS changes the official bundle, update the pinned
 checksum only after reviewing its roots and the CA assigned to RDS.
 
-The bundled Keycloak uses `start-dev` and ephemeral storage; it is a local/demo
-identity provider, not a production topology. Production should supply a
-managed OIDC provider or a hardened, persistent Keycloak deployment and set
-`OAUTH2_ISSUER_URI`, `OAUTH2_JWK_SET_URI` and `OAUTH2_AUDIENCE`.
+The bundled Keycloak uses `start-dev`; it is a local/staging identity provider,
+not a production topology. Production uses Cognito and supplies the issuer, JWK
+Set, resource ID, access/admin scopes and explicit client-ID allowlist described
+in `docs/configuration.md`.
 
 The platform must preserve the host-image path, terminate HTTPS before the API,
 and probe `/actuator/health/liveness` and `/actuator/health/readiness`. Do not

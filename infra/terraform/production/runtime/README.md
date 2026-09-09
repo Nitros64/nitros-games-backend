@@ -105,7 +105,10 @@ APP_STORAGE_HOST_IMAGES_S3_BUCKET=nitros-games-prod-host-images-529601496188-eu-
 APP_SECURITY_ALLOWED_ORIGINS=<real production origins>
 OAUTH2_ISSUER_URI=<real production issuer>
 OAUTH2_JWK_SET_URI=<real production JWK endpoint>
-OAUTH2_AUDIENCE=<real production audience>
+OAUTH2_RESOURCE_ID=<identity-state API resource ID>
+OAUTH2_ACCESS_SCOPE=<identity-state API access scope>
+OAUTH2_ADMIN_SCOPE=<identity-state API admin scope>
+OAUTH2_ALLOWED_CLIENT_IDS=<comma-separated trusted client IDs>
 ```
 
 The script validates all configuration before retrieving the exact secret,
@@ -116,8 +119,9 @@ when possible. It never prints the database password or ECR token. Rollback
 cannot reverse Flyway migrations, so migrations must remain backward
 compatible.
 
-Production identity does not exist yet. Do not create `runtime.conf` with fake
-OAuth values and do not run the deployment script until that blocker is solved.
+Use only reviewed outputs from the production identity root. Do not create
+`runtime.conf` with fake OAuth values. The application remains undeployed until
+the identity plan is applied and an initial administrator is provisioned.
 
 ## Terraform workflow
 

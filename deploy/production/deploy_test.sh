@@ -32,7 +32,10 @@ APP_STORAGE_HOST_IMAGES_S3_BUCKET=nitros-games-prod-host-images-$account_id-$reg
 APP_SECURITY_ALLOWED_ORIGINS=https://app.example.test
 OAUTH2_ISSUER_URI=https://identity.example.test/realms/nitros-games
 OAUTH2_JWK_SET_URI=https://identity.example.test/realms/nitros-games/protocol/openid-connect/certs
-OAUTH2_AUDIENCE=nitros-games-api
+OAUTH2_RESOURCE_ID=https://api.example.test
+OAUTH2_ACCESS_SCOPE=https://api.example.test/access
+OAUTH2_ADMIN_SCOPE=https://api.example.test/admin
+OAUTH2_ALLOWED_CLIENT_IDS=spa-client,machine-client
 EOF
 
 cat > "$mock_bin/aws" <<'EOF'
@@ -96,6 +99,10 @@ grep -q '^compose --env-file .* config --quiet$' "$TEST_DOCKER_LOG"
 grep -q '^compose --env-file .* pull api$' "$TEST_DOCKER_LOG"
 grep -q '^compose --env-file .* up --detach --no-deps --wait --wait-timeout 240 api$' "$TEST_DOCKER_LOG"
 grep -q '^DB_PASSWORD="test-\$\$-password"$' "$runtime_directory/runtime.env"
+grep -q '^OAUTH2_RESOURCE_ID="https://api.example.test"$' "$runtime_directory/runtime.env"
+grep -q '^OAUTH2_ACCESS_SCOPE="https://api.example.test/access"$' "$runtime_directory/runtime.env"
+grep -q '^OAUTH2_ADMIN_SCOPE="https://api.example.test/admin"$' "$runtime_directory/runtime.env"
+grep -q '^OAUTH2_ALLOWED_CLIENT_IDS="spa-client,machine-client"$' "$runtime_directory/runtime.env"
 if grep -q 'test-\$-password\|temporary-login-token' "$output"; then
   echo "A runtime secret was printed by the deployment script." >&2
   exit 1

@@ -69,7 +69,7 @@ configure_identity() {
   temporary_environment="$(mktemp "$deployment_directory/.env.XXXXXX")"
 
   grep -Ev \
-    '^(KEYCLOAK_ADMIN_USERNAME|KEYCLOAK_ADMIN_PASSWORD|NITROS_GAMES_CLI_SECRET|NITROS_GAMES_READER_CLI_SECRET|OAUTH2_ISSUER_URI|OAUTH2_JWK_SET_URI|OAUTH2_AUDIENCE)=' \
+    '^(KEYCLOAK_ADMIN_USERNAME|KEYCLOAK_ADMIN_PASSWORD|NITROS_GAMES_CLI_SECRET|NITROS_GAMES_READER_CLI_SECRET|OAUTH2_ISSUER_URI|OAUTH2_JWK_SET_URI|OAUTH2_AUDIENCE|OAUTH2_RESOURCE_ID|OAUTH2_ACCESS_SCOPE|OAUTH2_ADMIN_SCOPE|OAUTH2_ALLOWED_CLIENT_IDS)=' \
     "$environment_file" > "$temporary_environment" || true
   {
     printf 'KEYCLOAK_ADMIN_USERNAME=admin\n'
@@ -78,7 +78,10 @@ configure_identity() {
     printf 'NITROS_GAMES_READER_CLI_SECRET=%s\n' "$reader_client_secret"
     printf 'OAUTH2_ISSUER_URI=http://localhost:8081/realms/nitros-games\n'
     printf 'OAUTH2_JWK_SET_URI=http://keycloak:8080/realms/nitros-games/protocol/openid-connect/certs\n'
-    printf 'OAUTH2_AUDIENCE=nitros-games-api\n'
+    printf 'OAUTH2_RESOURCE_ID=nitros-games-api\n'
+    printf 'OAUTH2_ACCESS_SCOPE=nitros-games-api/access\n'
+    printf 'OAUTH2_ADMIN_SCOPE=nitros-games-api/admin\n'
+    printf 'OAUTH2_ALLOWED_CLIENT_IDS=nitros-games-web,nitros-games-cli,nitros-games-reader-cli\n'
   } >> "$temporary_environment"
   chmod 0600 "$temporary_environment"
   mv "$temporary_environment" "$environment_file"
