@@ -32,3 +32,13 @@ output "parameter_group_name" {
   description = "Custom MySQL 8.4 parameter group name."
   value       = aws_db_parameter_group.mysql84.name
 }
+
+output "host_images_bucket_name" {
+  description = "Private S3 bucket for persistent production host images."
+  value       = local.host_images_bucket_name
+}
+
+output "host_images_bucket_arn" {
+  description = "ARN of the private production host-images bucket."
+  value       = aws_s3_bucket.host_images.arn
+}

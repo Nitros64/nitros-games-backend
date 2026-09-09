@@ -1,8 +1,9 @@
 # Production data tier
 
-This Terraform root creates only the production Amazon RDS for MySQL data tier.
-It does not create application compute, load balancing, application object
-storage, identity, deployment automation or application schema objects.
+This Terraform root owns the persistent production data resources: Amazon RDS
+for MySQL and the private S3 bucket for uploaded host images. It does not create
+application compute, load balancing, identity, deployment automation or
+application schema objects.
 
 ## Architecture
 
@@ -13,12 +14,50 @@ production/foundation remote state
 └── database SG ──────────────────────────┘
         ▲
         └── TCP 3306 only from the foundation application SG
+
+Application runtime (future) ── TLS ── S3 host-images bucket
 ```
 
 This root reads the existing network IDs from
 `production/foundation/terraform.tfstate`; subnet and security group IDs are
 not duplicated in variables. Its own state starts remotely at
 `production/data/terraform.tfstate` in the protected production state bucket.
+
+## Host-image object storage
+
+The bucket name is derived from the project, production environment, AWS
+account and region:
+
+```text
+nitros-games-prod-host-images-529601496188-eu-west-1
+```
+
+The longer unabridged name would exceed S3's 63-character limit. The bucket is
+separate from the Terraform state bucket and has these protections:
+
+- all four S3 Block Public Access settings enabled;
+- ACLs disabled through `BucketOwnerEnforced`;
+- default SSE-S3 encryption using AES-256;
+- versioning enabled;
+- bucket policy denying every request where `aws:SecureTransport` is false;
+- `force_destroy = false` and Terraform `prevent_destroy`;
+- no public allow policy, website hosting, public ACL or lifecycle expiration.
+
+Objects will eventually use keys shaped as:
+
+```text
+host-images/<uuid>.<extension>
+```
+
+No placeholder object is needed because S3 prefixes are logical. The current
+application still uses the filesystem implementation selected as
+`FileHostImageStorage`; the S3 adapter and its Spring profile selection belong
+to Delivery 8B.5.
+
+The future runtime role should receive only `s3:GetObject`, `s3:PutObject` and
+`s3:DeleteObject` on `<bucket-arn>/host-images/*`, plus `s3:ListBucket`
+restricted to the `host-images/` prefix. This delivery creates no EC2 role or
+runtime IAM policy.
 
 ## Database configuration
 
@@ -78,6 +117,27 @@ Spring Boot -> TLS connection -> Flyway validate/migrate
 The historical V1-V4 migrations remain immutable. Production keeps
 `spring.flyway.baseline-on-migrate=false`.
 
+## Secret classification and application database user
+
+Secrets include database passwords, OAuth client secrets and administrative
+credentials. DB endpoint, port, database name, AWS region, S3 bucket name,
+OAuth issuer URI, JWK Set URI and OAuth audience are ordinary configuration and
+must not be placed in Secrets Manager merely because they vary by environment.
+
+The RDS master credential remains exclusively in the RDS-managed Secrets
+Manager secret created by `manage_master_user_password = true`. Terraform does
+not read, duplicate or output its password. No empty application secret and no
+secret version is created in this delivery: there is not yet a runtime
+credential or consumer to justify one.
+
+The future application should use a dedicated `nitros_app` database account,
+not `nitros_admin`. The clean provisioning mechanism is an idempotent,
+short-lived bootstrap job running inside the production VPC. It should retrieve
+the RDS-managed master credential at runtime, create or reconcile `nitros_app`
+and its least-privilege grants, store the resulting application credential in
+Secrets Manager, and then discard master access. Terraform must not connect to
+private MySQL through a MySQL provider, `local-exec` or `remote-exec`.
+
 ## Backups and deletion safety
 
 - seven-day automated backup retention;
@@ -94,6 +154,10 @@ day. Before an intentional deletion, choose a new reviewed identifier if a
 snapshot with the configured name already exists. A future hibernation workflow
 must explicitly and separately disable deletion protection and
 `prevent_destroy`; this root does not implement hibernation.
+
+S3 is persistent data and should normally remain untouched while production
+compute is stopped or destroyed. Its storage and retained object versions will
+continue to incur a small charge during compute hibernation.
 
 ## Validate
 
