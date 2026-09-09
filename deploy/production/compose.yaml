@@ -1,0 +1,53 @@
+name: nitros-games-production
+
+services:
+  api:
+    image: ${APP_IMAGE:?Set APP_IMAGE to an immutable ECR image}
+    restart: unless-stopped
+    init: true
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: ${DB_URL:?Set the TLS-verified production RDS JDBC URL}
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME from the runtime secret}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD from the runtime secret}
+      APP_STORAGE_HOST_IMAGES_BACKEND: s3
+      APP_STORAGE_HOST_IMAGES_S3_BUCKET: ${APP_STORAGE_HOST_IMAGES_S3_BUCKET:?Set the production bucket}
+      APP_STORAGE_HOST_IMAGES_S3_PREFIX: ${APP_STORAGE_HOST_IMAGES_S3_PREFIX:-host-images/}
+      APP_STORAGE_MAX_FILE_SIZE: ${APP_STORAGE_MAX_FILE_SIZE:-10MB}
+      APP_STORAGE_MAX_REQUEST_SIZE: ${APP_STORAGE_MAX_REQUEST_SIZE:-11MB}
+      AWS_REGION: ${AWS_REGION:?Set AWS_REGION}
+      APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS:?Set allowed origins}
+      OAUTH2_ISSUER_URI: ${OAUTH2_ISSUER_URI:?Production identity is not configured}
+      OAUTH2_JWK_SET_URI: ${OAUTH2_JWK_SET_URI:?Production identity is not configured}
+      OAUTH2_AUDIENCE: ${OAUTH2_AUDIENCE:?Production identity is not configured}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
+    ports:
+      - 127.0.0.1:8080:8080
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 768m
+    pids_limit: 200
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1:8080/actuator/health/readiness
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
