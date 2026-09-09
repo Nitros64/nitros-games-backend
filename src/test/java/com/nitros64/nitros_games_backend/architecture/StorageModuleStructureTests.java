@@ -14,12 +14,15 @@ import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageNameRequ
 import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageResponse;
 import com.nitros64.nitros_games_backend.storage.api.dto.ServerHostImageUploadRequest;
 import com.nitros64.nitros_games_backend.storage.api.mapper.ServerHostImageApiMapper;
-import com.nitros64.nitros_games_backend.storage.application.FileHostImageHandler;
-import com.nitros64.nitros_games_backend.storage.application.FilesStorageService;
+import com.nitros64.nitros_games_backend.storage.application.HostImageStorage;
+import com.nitros64.nitros_games_backend.storage.application.HostImageStorageHandler;
 import com.nitros64.nitros_games_backend.storage.application.ServerHostImageService;
 import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 import com.nitros64.nitros_games_backend.storage.domain.ServerHostImage;
 import com.nitros64.nitros_games_backend.storage.infrastructure.FileHostImageStorage;
+import com.nitros64.nitros_games_backend.storage.infrastructure.HostImageUploadValidator;
+import com.nitros64.nitros_games_backend.storage.infrastructure.S3HostImageStorage;
+import com.nitros64.nitros_games_backend.storage.infrastructure.S3HostImageStorageConfiguration;
 import com.nitros64.nitros_games_backend.storage.infrastructure.StorageProperties;
 import com.nitros64.nitros_games_backend.storage.persistence.ServerHostImageRepository;
 
@@ -32,10 +35,11 @@ class StorageModuleStructureTests {
     void storageComponentsStayInsideTheirVerticalModule() {
         List<Class<?>> storageTypes = List.of(
                 ServerHostImage.class,
-                ServerHostImageService.class, FileHostImageHandler.class,
-                FilesStorageService.class, UploadImageException.class,
+                ServerHostImageService.class, HostImageStorageHandler.class,
+                HostImageStorage.class, UploadImageException.class,
                 ServerHostImageRepository.class, FileHostImageStorage.class,
-                StorageProperties.class,
+                S3HostImageStorage.class, S3HostImageStorageConfiguration.class,
+                HostImageUploadValidator.class, StorageProperties.class,
                 ServerHostImageController.class, FileExceptionHandler.class,
                 ServerHostImageNameRequest.class, ServerHostImageUploadRequest.class,
                 ServerHostImageResponse.class, ServerHostImageApiMapper.class);

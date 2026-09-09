@@ -33,8 +33,20 @@ class ConfigurationSecurityTests {
         assertEquals("${DB_USERNAME}", properties.getProperty("spring.datasource.username"));
         assertEquals("${DB_PASSWORD}", properties.getProperty("spring.datasource.password"));
         assertEquals(
-                "${APP_STORAGE_HOST_IMAGES_DIRECTORY}",
+                "${APP_STORAGE_HOST_IMAGES_BACKEND:filesystem}",
+                properties.getProperty("app.storage.host-images.backend"));
+        assertEquals(
+                "${APP_STORAGE_HOST_IMAGES_DIRECTORY:uploadImageFileHost}",
                 properties.getProperty("app.storage.host-images.directory"));
+        assertEquals(
+                "${APP_STORAGE_HOST_IMAGES_S3_BUCKET:}",
+                properties.getProperty("app.storage.host-images.s3.bucket"));
+        assertEquals(
+                "${AWS_REGION:}",
+                properties.getProperty("app.storage.host-images.s3.region"));
+        assertEquals(
+                "${APP_STORAGE_HOST_IMAGES_S3_PREFIX:host-images/}",
+                properties.getProperty("app.storage.host-images.s3.prefix"));
         assertEquals(
                 "${APP_SECURITY_ALLOWED_ORIGINS}",
                 properties.getProperty("app.security.allowed-origins"));

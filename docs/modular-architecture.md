@@ -108,13 +108,16 @@ be distinguished from a missing parent.
 `storage` owns host-image metadata and the files that back it. Its `api` layer
 contains the multipart endpoint and file-specific exception mapping;
 `application` contains the host-image service and the file-storage port;
-`persistence` owns the JPA repository; and `infrastructure` contains the local
-filesystem adapter.
+`persistence` owns the JPA repository; and `infrastructure` contains selectable
+filesystem and Amazon S3 adapters behind the same application port.
 
 The endpoint path, multipart field names and JPA mappings remain unchanged. The
-filesystem adapter uses an externally configured root, generates server-side
-filenames, confines every operation to that root, validates size and image
-signature, and publishes uploads with an atomic move.
+Both adapters generate server-side identifiers and share the same size, media
+type and image-signature validation. The filesystem adapter confines every
+operation to its configured root and publishes uploads with an atomic move.
+The S3 adapter confines keys to its configured prefix and uses the AWS SDK
+default credentials chain, allowing production to obtain credentials from its
+runtime IAM role without application secrets.
 
 The storage API exposes DTOs rather than `ServerHostImage` entities. Multipart
 field names remain `fileHostImage` and `name`. Creation, image replacement and

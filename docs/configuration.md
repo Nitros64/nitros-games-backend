@@ -49,7 +49,10 @@ environment or a secrets manager:
 - `DB_URL`
 - `DB_USERNAME`
 - `DB_PASSWORD`
-- `APP_STORAGE_HOST_IMAGES_DIRECTORY`
+- `APP_STORAGE_HOST_IMAGES_BACKEND=s3`
+- `APP_STORAGE_HOST_IMAGES_S3_BUCKET`
+- `AWS_REGION`
+- `APP_STORAGE_HOST_IMAGES_S3_PREFIX` (normally `host-images/`)
 - `APP_SECURITY_ALLOWED_ORIGINS`
 - `OAUTH2_ISSUER_URI`
 - `OAUTH2_JWK_SET_URI`
@@ -86,9 +89,21 @@ are restricted to 64 letters, digits, dots, underscores or hyphens.
 
 ## Host-image storage
 
-Production requires `APP_STORAGE_HOST_IMAGES_DIRECTORY` to point to a writable,
-persistent directory mounted outside the application image. Local development
-defaults to `uploadImageFileHost` under the working directory.
+The storage backend is selected explicitly with
+`APP_STORAGE_HOST_IMAGES_BACKEND=filesystem|s3`. Filesystem is the default so
+local development and the current single-host staging deployment keep their
+existing behavior. Its root is configured with
+`APP_STORAGE_HOST_IMAGES_DIRECTORY` and defaults locally to
+`uploadImageFileHost` under the working directory.
+
+The production runtime selects `s3` and supplies
+`APP_STORAGE_HOST_IMAGES_S3_BUCKET`, `AWS_REGION` and the optional
+`APP_STORAGE_HOST_IMAGES_S3_PREFIX` (default `host-images/`). The adapter uses
+the AWS SDK default credentials provider chain; no access key or secret is held
+in application properties. New objects use generated keys such as
+`host-images/<uuid>.png`, and deletion addresses that exact key. On a versioned
+bucket, normal deletion creates a delete marker and does not permanently erase
+historical object versions.
 
 Uploads are limited by `APP_STORAGE_MAX_FILE_SIZE` (default `10MB`). The complete
 multipart request is limited independently by `APP_STORAGE_MAX_REQUEST_SIZE`

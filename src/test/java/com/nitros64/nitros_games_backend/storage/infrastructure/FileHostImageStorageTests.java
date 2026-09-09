@@ -44,7 +44,7 @@ class FileHostImageStorageTests {
                 "image/png",
                 PNG_IMAGE);
 
-        String filename = storage.write(image);
+        String filename = storage.store(image);
 
         assertThat(filename).matches("[0-9a-f-]{36}\\.png");
         assertThat(filename).doesNotContain("attacker", "..", "/", "\\");
@@ -96,7 +96,7 @@ class FileHostImageStorageTests {
     void deletesOnlyFilesInsideTheConfiguredRoot() {
         MockMultipartFile image = new MockMultipartFile(
                 "fileHostImage", "image.png", "image/png", PNG_IMAGE);
-        String filename = storage.write(image);
+        String filename = storage.store(image);
 
         assertThat(storage.delete(filename)).isTrue();
         assertThat(storageDirectory.resolve(filename)).doesNotExist();
@@ -106,12 +106,12 @@ class FileHostImageStorageTests {
         StorageProperties properties = new StorageProperties();
         properties.setDirectory(storageDirectory);
         properties.setMaxFileSize(maxFileSize);
-        return new FileHostImageStorage(properties);
+        return new FileHostImageStorage(properties, new HostImageUploadValidator(properties));
     }
 
     private void assertStatus(MockMultipartFile file, HttpStatus expectedStatus) {
         assertThatExceptionOfType(UploadImageException.class)
-                .isThrownBy(() -> storage.write(file))
+                .isThrownBy(() -> storage.store(file))
                 .satisfies(exception -> assertThat(exception.getHttpStatus())
                         .isEqualTo(expectedStatus));
     }
