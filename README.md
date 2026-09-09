@@ -375,10 +375,12 @@ curl --header "Authorization: Bearer $ACCESS_TOKEN" \
   http://localhost:8080/api/v1/server-host-images
 ```
 
-El servidor genera el nombre físico, limita el tamaño, comprueba el MIME y la
-firma binaria, impide salir del directorio configurado y coordina los archivos
-con la transacción de base de datos. Producción requiere un volumen persistente
-en `APP_STORAGE_HOST_IMAGES_DIRECTORY`.
+El servidor genera la clave física, limita el tamaño, comprueba el MIME y la
+firma binaria y coordina los objetos con la transacción de base de datos. El
+backend se elige con `APP_STORAGE_HOST_IMAGES_BACKEND`: `filesystem` conserva
+el comportamiento local/staging y `s3` almacena claves
+`host-images/<uuid>.<ext>` usando las credenciales del rol AWS del runtime. La
+configuración completa está en [docs/configuration.md](docs/configuration.md).
 
 ## Pruebas
 

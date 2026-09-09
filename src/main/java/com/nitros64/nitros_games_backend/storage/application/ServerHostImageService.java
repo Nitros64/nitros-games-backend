@@ -16,13 +16,13 @@ import com.nitros64.nitros_games_backend.storage.persistence.ServerHostImageRepo
 public class ServerHostImageService {
 
     private final ServerHostImageRepository images;
-    private final FileHostImageHandler fileHandler;
+    private final HostImageStorageHandler storageHandler;
 
     public ServerHostImageService(
             ServerHostImageRepository images,
-            FileHostImageHandler fileHandler) {
+            HostImageStorageHandler storageHandler) {
         this.images = images;
-        this.fileHandler = fileHandler;
+        this.storageHandler = storageHandler;
     }
 
     @Transactional(readOnly = true)
@@ -48,21 +48,21 @@ public class ServerHostImageService {
 
     @Transactional
     public ServerHostImage create(String name, MultipartFile file) {
-        String filename = fileHandler.store(file);
-        fileHandler.deleteOnRollback(filename);
-        return images.saveAndFlush(new ServerHostImage(name, filename));
+        String storageKey = storageHandler.store(file);
+        storageHandler.deleteOnRollback(storageKey);
+        return images.saveAndFlush(new ServerHostImage(name, storageKey));
     }
 
     @Transactional
     public ServerHostImage updateImage(Long id, String name, MultipartFile file) {
         ServerHostImage entity = findById(id);
         String oldFilename = entity.getImagepath();
-        String newFilename = fileHandler.store(file);
-        fileHandler.deleteOnRollback(newFilename);
+        String newFilename = storageHandler.store(file);
+        storageHandler.deleteOnRollback(newFilename);
 
         entity.replace(name, newFilename);
         ServerHostImage updated = images.saveAndFlush(entity);
-        fileHandler.deleteAfterCommit(oldFilename);
+        storageHandler.deleteAfterCommit(oldFilename);
         return updated;
     }
 
@@ -79,6 +79,6 @@ public class ServerHostImageService {
         String filename = entity.getImagepath();
         images.delete(entity);
         images.flush();
-        fileHandler.deleteAfterCommit(filename);
+        storageHandler.deleteAfterCommit(filename);
     }
 }

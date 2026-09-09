@@ -8,51 +8,43 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.nitros64.nitros_games_backend.storage.application.FilesStorageService;
+import com.nitros64.nitros_games_backend.storage.application.HostImageStorage;
 import com.nitros64.nitros_games_backend.storage.application.UploadImageException;
 
-@Service("FileHostImageStorage")
-public class FileHostImageStorage implements FilesStorageService {
-
-    private static final Map<String, ImageFormat> ALLOWED_IMAGES = Map.of(
-            MediaType.IMAGE_PNG_VALUE, new ImageFormat("png", new byte[] {
-                    (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}),
-            MediaType.IMAGE_JPEG_VALUE, new ImageFormat("jpg", new byte[] {
-                    (byte) 0xff, (byte) 0xd8, (byte) 0xff}),
-            MediaType.IMAGE_GIF_VALUE, new ImageFormat("gif", new byte[] {
-                    0x47, 0x49, 0x46, 0x38}));
+@Service
+@ConditionalOnProperty(
+        prefix = "app.storage.host-images",
+        name = "backend",
+        havingValue = "filesystem",
+        matchIfMissing = true)
+public class FileHostImageStorage implements HostImageStorage {
 
     private final Path root;
-    private final long maxFileSize;
+    private final HostImageUploadValidator validator;
 
-    public FileHostImageStorage(StorageProperties properties) {
+    public FileHostImageStorage(
+            StorageProperties properties,
+            HostImageUploadValidator validator) {
         this.root = properties.getDirectory().toAbsolutePath().normalize();
-        this.maxFileSize = properties.getMaxFileSize().toBytes();
+        this.validator = validator;
 
         if (root.getParent() == null) {
             throw new IllegalArgumentException("Storage directory cannot be a filesystem root");
         }
-        if (maxFileSize <= 0) {
-            throw new IllegalArgumentException("Storage max file size must be greater than zero");
-        }
     }
 
     @PostConstruct
-    @Override
     public void init() {
         try {
             Files.createDirectories(root);
@@ -65,8 +57,8 @@ public class FileHostImageStorage implements FilesStorageService {
     }
 
     @Override
-    public String write(MultipartFile file) {
-        ImageFormat format = validate(file);
+    public String store(MultipartFile file) {
+        HostImageUploadValidator.ImageFormat format = validator.validate(file);
         String filename = UUID.randomUUID() + "." + format.extension();
         Path target = resolveInsideRoot(filename);
         Path temporary = null;
@@ -85,7 +77,6 @@ public class FileHostImageStorage implements FilesStorageService {
         }
     }
 
-    @Override
     public Resource load(String filename) {
         Path file = existingRegularFile(filename);
         try {
@@ -104,39 +95,6 @@ public class FileHostImageStorage implements FilesStorageService {
             return true;
         } catch (IOException e) {
             throw storageError("Could not delete the requested image", e);
-        }
-    }
-
-    private ImageFormat validate(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new UploadImageException("The uploaded image is empty", null, HttpStatus.BAD_REQUEST);
-        }
-        if (file.getSize() > maxFileSize) {
-            throw new UploadImageException(
-                    "The uploaded image exceeds the configured size limit",
-                    null,
-                    HttpStatus.CONTENT_TOO_LARGE);
-        }
-
-        String contentType = file.getContentType();
-        ImageFormat format = contentType == null
-                ? null
-                : ALLOWED_IMAGES.get(contentType.toLowerCase(Locale.ROOT));
-        if (format == null || !hasExpectedSignature(file, format.signature())) {
-            throw new UploadImageException(
-                    "Only valid PNG, JPEG and GIF images are supported",
-                    null,
-                    HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-        }
-        return format;
-    }
-
-    private boolean hasExpectedSignature(MultipartFile file, byte[] signature) {
-        try (InputStream input = file.getInputStream()) {
-            return Arrays.equals(signature, input.readNBytes(signature.length));
-        } catch (IOException e) {
-            throw new UploadImageException(
-                    "Could not inspect the uploaded image", e, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -189,8 +147,5 @@ public class FileHostImageStorage implements FilesStorageService {
         } catch (IOException ignored) {
             // The primary storage exception, if any, must remain visible to the caller.
         }
-    }
-
-    private record ImageFormat(String extension, byte[] signature) {
     }
 }
