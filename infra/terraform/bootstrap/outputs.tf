@@ -32,3 +32,18 @@ output "trusted_github_subject" {
   description = "Exact GitHub OIDC subject allowed to assume the publisher role."
   value       = local.github_subject
 }
+
+output "terraform_state_bucket_name" {
+  description = "Globally unique S3 bucket that stores protected production Terraform state."
+  value       = local.terraform_state_bucket_name
+}
+
+output "terraform_state_bucket_arn" {
+  description = "ARN of the S3 bucket that stores protected production Terraform state."
+  value       = aws_s3_bucket.terraform_state.arn
+}
+
+output "terraform_state_bucket_region" {
+  description = "AWS region containing the production Terraform state bucket."
+  value       = aws_s3_bucket.terraform_state.region
+}

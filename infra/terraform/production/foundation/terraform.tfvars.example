@@ -1,0 +1,20 @@
+aws_region   = "eu-west-1"
+project_name = "nitros-games-backend"
+environment  = "production"
+
+vpc_cidr = "10.43.0.0/16"
+
+public_subnet_cidrs = {
+  a = "10.43.0.0/24"
+  b = "10.43.1.0/24"
+}
+
+private_data_subnet_cidrs = {
+  a = "10.43.10.0/24"
+  b = "10.43.11.0/24"
+}
+
+additional_tags = {
+  Repository = "Nitros64/nitros-games-backend"
+  Lifecycle  = "production"
+}
