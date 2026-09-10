@@ -60,7 +60,7 @@ write_env_line() {
   printf '\n'
 }
 
-readonly secret_arn="$(read_config RDS_MASTER_SECRET_ARN)"
+readonly secret_arn="$(read_config APPLICATION_DB_SECRET_ARN)"
 readonly db_url="$(read_config DB_URL)"
 readonly bucket="$(read_config APP_STORAGE_HOST_IMAGES_S3_BUCKET)"
 readonly allowed_origins="$(read_config APP_SECURITY_ALLOWED_ORIGINS)"
@@ -75,8 +75,8 @@ readonly allowed_client_ids="$(read_config OAUTH2_ALLOWED_CLIENT_IDS)"
   echo "DB_URL must target the RDS DNS name and use sslMode=VERIFY_IDENTITY." >&2
   exit 67
 }
-[[ "$secret_arn" == arn:aws:secretsmanager:${aws_region}:*:secret:rds\!* ]] || {
-  echo "RDS_MASTER_SECRET_ARN must be an RDS-managed secret in the selected region." >&2
+[[ "$secret_arn" =~ ^arn:aws:secretsmanager:${aws_region}:[0-9]{12}:secret:nitros-games-backend/production/database/application-[A-Za-z0-9]{6}$ ]] || {
+  echo "APPLICATION_DB_SECRET_ARN must identify the dedicated application credential in the selected region." >&2
   exit 67
 }
 
@@ -95,6 +95,12 @@ secret_json="$(aws secretsmanager get-secret-value \
 db_username="$(jq --exit-status --raw-output '.username' <<< "$secret_json")"
 db_password="$(jq --exit-status --raw-output '.password' <<< "$secret_json")"
 unset secret_json
+
+[[ "$db_username" == "nitros_app" ]] || {
+  unset db_password
+  echo "The application database secret must contain username nitros_app." >&2
+  exit 67
+}
 
 install -d -o root -g root -m 0700 "$runtime_directory"
 candidate_environment="$(mktemp "$runtime_directory/runtime.env.XXXXXX")"

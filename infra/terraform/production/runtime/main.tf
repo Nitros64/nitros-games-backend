@@ -60,12 +60,12 @@ check "remote_state_contract" {
 
   assert {
     condition = (
-      data.terraform_remote_state.data.outputs.master_secret_arn != null
+      data.terraform_remote_state.data.outputs.application_db_secret_arn != ""
       && data.terraform_remote_state.data.outputs.host_images_bucket_arn != ""
       && data.terraform_remote_state.data.outputs.db_endpoint != ""
       && data.terraform_remote_state.data.outputs.db_name == "nitrosgames"
     )
-    error_message = "Production data state must expose RDS, its managed secret and the host-images bucket."
+    error_message = "Production data state must expose RDS, its application secret, and the host-images bucket."
   }
 }
 
@@ -78,10 +78,14 @@ resource "aws_instance" "application" {
   iam_instance_profile        = aws_iam_instance_profile.application.name
   monitoring                  = false
   user_data_replace_on_change = true
-  user_data = templatefile("${path.module}/user-data.sh.tftpl", {
-    docker_compose_version = var.docker_compose_version
-    docker_compose_sha256  = var.docker_compose_sha256
-  })
+  user_data = replace(
+    templatefile("${path.module}/user-data.sh.tftpl", {
+      docker_compose_version = var.docker_compose_version
+      docker_compose_sha256  = var.docker_compose_sha256
+    }),
+    "\r\n",
+    "\n"
+  )
 
   metadata_options {
     http_endpoint               = "enabled"
