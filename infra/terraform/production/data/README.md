@@ -16,6 +16,10 @@ production/foundation remote state
         └── TCP 3306 only from the foundation application SG
 
 Application runtime (future) ── TLS ── S3 host-images bucket
+
+Secrets Manager
+├── RDS-managed master credential (bootstrap only)
+└── application database secret metadata (runtime credential target)
 ```
 
 This root reads the existing network IDs from
@@ -126,17 +130,40 @@ must not be placed in Secrets Manager merely because they vary by environment.
 
 The RDS master credential remains exclusively in the RDS-managed Secrets
 Manager secret created by `manage_master_user_password = true`. Terraform does
-not read, duplicate or output its password. No empty application secret and no
-secret version is created in this delivery: there is not yet a runtime
-credential or consumer to justify one.
+not read, duplicate or output its password.
 
-The future application should use a dedicated `nitros_app` database account,
-not `nitros_admin`. The clean provisioning mechanism is an idempotent,
-short-lived bootstrap job running inside the production VPC. It should retrieve
-the RDS-managed master credential at runtime, create or reconcile `nitros_app`
-and its least-privilege grants, store the resulting application credential in
-Secrets Manager, and then discard master access. Terraform must not connect to
-private MySQL through a MySQL provider, `local-exec` or `remote-exec`.
+Terraform creates only metadata for the dedicated application credential at:
+
+```text
+nitros-games-backend/production/database/application
+```
+
+There is deliberately no `aws_secretsmanager_secret_version` or password in
+Terraform state. The eventual `SecretString` is initialized outside Terraform
+and contains only:
+
+```json
+{"username":"nitros_app","password":"<generated-at-bootstrap>"}
+```
+
+The dedicated `nitros_app` account is reconciled by an idempotent, short-lived
+bootstrap run inside the production VPC. It receives `ALL PRIVILEGES` only on
+`nitrosgames.*`, without `WITH GRANT OPTION`, and uses `REQUIRE SSL`. This lets
+Flyway perform database-scoped DDL and DML but grants no global `*.*`, user
+administration, server administration or file-system privilege.
+
+The controlled transition has two phases:
+
+1. Apply this data root to create the metadata-only secret and publish
+   `application_db_secret_arn` in remote state.
+2. Update runtime from that output, temporarily allowing the exact EC2 role to
+   read the master secret and read/write the application secret. Run the
+   one-time bootstrap through SSM, verify a TLS `SELECT 1`, then remove master
+   access and `PutSecretValue`. Normal runtime retains only
+   `GetSecretValue`/`DescribeSecret` on the application secret.
+
+Terraform never connects to private MySQL through a MySQL provider,
+`local-exec`, `remote-exec` or a provisioner.
 
 ## Backups and deletion safety
 
