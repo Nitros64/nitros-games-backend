@@ -18,7 +18,7 @@ one AL2023 x86_64 t3.small EC2
         |-- existing application SG (zero ingress)
         |-- SSM Session Manager
         |-- ECR pull-only
-        |-- Secrets Manager: exact RDS master secret
+        |-- Secrets Manager: read-only application DB secret
         `-- S3: exact bucket host-images/*
         |
         `-- application SG -> TCP/3306 -> database SG -> private RDS
@@ -79,13 +79,16 @@ three inline policies:
 - S3: `GetObject`, `PutObject` and `DeleteObject` only on the data-state bucket
   ARN plus `/host-images/*`; `ListBucket` is restricted with `s3:prefix` to
   `host-images/` and `host-images/*`.
-- Secrets Manager: `GetSecretValue` and `DescribeSecret` only for the exact
-  RDS-managed master-secret ARN exported by production data.
+- Secrets Manager: `DescribeSecret` and `GetSecretValue` only for the exact
+  application database secret exported by production data.
 
-Master-secret access is temporary technical debt for the first controlled
-bring-up. The application must later use a dedicated least-privilege database
-account such as `nitros_app`; this delivery deliberately performs no SQL
-provisioning and uses no Terraform provisioner or MySQL provider.
+The runtime role has no access to the RDS master credential, cannot write the
+application secret and cannot call `GetRandomPassword`. The retained
+`bootstrap-db-user.sh` is an operational recovery tool and cannot run under this
+final role. Reusing it requires a separately reviewed, temporary IAM elevation
+that is removed immediately after reconciliation and verification. Terraform
+performs no SQL provisioning and uses no Terraform provisioner or MySQL
+provider.
 
 ## Runtime and deployment contract
 
@@ -99,7 +102,7 @@ requires an immutable ECR URI tagged with a full 40-character commit SHA and a
 root-owned `/opt/nitros-games/runtime.conf` containing only non-secret values:
 
 ```text
-RDS_MASTER_SECRET_ARN=<data-state output ARN>
+APPLICATION_DB_SECRET_ARN=<data-state application_db_secret_arn>
 DB_URL=jdbc:mysql://<actual-rds-endpoint>:3306/nitrosgames?sslMode=VERIFY_IDENTITY
 APP_STORAGE_HOST_IMAGES_S3_BUCKET=nitros-games-prod-host-images-529601496188-eu-west-1
 APP_SECURITY_ALLOWED_ORIGINS=<real production origins>
@@ -111,7 +114,8 @@ OAUTH2_ADMIN_SCOPE=<identity-state API admin scope>
 OAUTH2_ALLOWED_CLIENT_IDS=<comma-separated trusted client IDs>
 ```
 
-The script validates all configuration before retrieving the exact secret,
+The script validates all configuration before retrieving the exact application
+database secret, requires its username to be `nitros_app`,
 authenticates to ECR, writes the expanded environment atomically to
 `/run/nitros-games/runtime.env` with mode `0600`, pulls before changing the
 running image, waits for readiness and restores the previous immutable image

@@ -79,22 +79,22 @@ resource "aws_iam_role_policy" "host_images" {
   policy = data.aws_iam_policy_document.host_images.json
 }
 
-data "aws_iam_policy_document" "rds_master_secret" {
+data "aws_iam_policy_document" "application_database_secret" {
   statement {
-    sid    = "ReadTemporaryRdsMasterCredential"
+    sid    = "ReadApplicationDatabaseCredential"
     effect = "Allow"
     actions = [
       "secretsmanager:DescribeSecret",
       "secretsmanager:GetSecretValue"
     ]
-    resources = [data.terraform_remote_state.data.outputs.master_secret_arn]
+    resources = [data.terraform_remote_state.data.outputs.application_db_secret_arn]
   }
 }
 
-resource "aws_iam_role_policy" "rds_master_secret" {
-  name   = "read-temporary-rds-master-credential"
+resource "aws_iam_role_policy" "application_database_secret" {
+  name   = "read-application-database-credential"
   role   = aws_iam_role.application.id
-  policy = data.aws_iam_policy_document.rds_master_secret.json
+  policy = data.aws_iam_policy_document.application_database_secret.json
 }
 
 resource "aws_iam_instance_profile" "application" {
