@@ -101,3 +101,74 @@ resource "aws_iam_instance_profile" "application" {
   name = "${local.name_prefix}-application"
   role = aws_iam_role.application.name
 }
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_openid_connect_provider" "github_actions" {
+  arn = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+}
+
+data "aws_iam_policy_document" "github_production_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github_actions.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_owner}/${var.github_repository}:environment:${var.github_environment}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_production_deployer" {
+  name               = "${local.name_prefix}-github-deployer"
+  description        = "OIDC role for approved production deployments from GitHub Actions."
+  assume_role_policy = data.aws_iam_policy_document.github_production_assume_role.json
+}
+
+data "aws_iam_policy_document" "github_production_deploy" {
+  statement {
+    sid       = "VerifyImmutableApplicationImage"
+    effect    = "Allow"
+    actions   = ["ecr:DescribeImages"]
+    resources = [data.aws_ecr_repository.application.arn]
+  }
+
+  statement {
+    sid     = "RunProductionDeployment"
+    effect  = "Allow"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.application.id}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript"
+    ]
+  }
+
+  statement {
+    sid    = "ReadProductionDeploymentStatus"
+    effect = "Allow"
+    actions = [
+      "ssm:DescribeInstanceInformation",
+      "ssm:GetCommandInvocation"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_production_deploy" {
+  name   = "deploy-existing-image-through-ssm"
+  role   = aws_iam_role.github_production_deployer.id
+  policy = data.aws_iam_policy_document.github_production_deploy.json
+}

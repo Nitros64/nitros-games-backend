@@ -64,6 +64,13 @@ if [[ "$1" == "login" ]]; then
   cat >/dev/null
 fi
 printf '%s\n' "$*" >> "$TEST_DOCKER_LOG"
+if [[ "$*" == *" logs "* ]]; then
+  printf 'password=must-not-survive token:must-not-survive\n'
+  printf 'Connecting to jdbc:mysql://database.example/nitrosgames\n'
+elif [[ "${TEST_FAIL_CANDIDATE:-false}" == "true" && "$*" == *" up "* && ! -f "$TEST_DOCKER_FAIL_MARKER" ]]; then
+  touch "$TEST_DOCKER_FAIL_MARKER"
+  exit 1
+fi
 EOF
 
 cat > "$mock_bin/curl" <<'EOF'
@@ -93,6 +100,7 @@ chmod +x "$mock_bin/aws" "$mock_bin/docker" "$mock_bin/curl" "$mock_bin/install"
 export PATH="$mock_bin:$PATH"
 export TEST_AWS_LOG="$test_root/aws.log"
 export TEST_DOCKER_LOG="$test_root/docker.log"
+export TEST_DOCKER_FAIL_MARKER="$test_root/docker-failed-once"
 export NITROS_GAMES_DEPLOYMENT_DIRECTORY="$deployment_directory"
 export NITROS_GAMES_RUNTIME_DIRECTORY="$runtime_directory"
 
@@ -118,4 +126,25 @@ if grep -q 'test-\$-password\|temporary-login-token' "$output"; then
   exit 1
 fi
 
-echo "Production deployment preflight, secret handling and readiness orchestration tests passed."
+readonly failed_image="$account_id.dkr.ecr.$region.amazonaws.com/nitros-games-backend:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+rollback_output="$test_root/rollback-output.log"
+if TEST_FAIL_CANDIDATE=true bash "$deploy_script" "$failed_image" "$region" > "$rollback_output" 2>&1; then
+  echo "A failed candidate deployment unexpectedly succeeded." >&2
+  exit 1
+else
+  rollback_status="$?"
+fi
+
+[[ "$rollback_status" -eq 70 ]]
+grep -q '^DEPLOYMENT_RESULT=rolled_back$' "$rollback_output"
+grep -q "^FAILED_IMAGE=$failed_image$" "$rollback_output"
+grep -q "^RESTORED_IMAGE=$image$" "$rollback_output"
+grep -q "^CANDIDATE_LOG=$runtime_directory/candidate-failure.log$" "$rollback_output"
+grep -q '^\[REDACTED SENSITIVE LOG LINE\]$' "$runtime_directory/candidate-failure.log"
+grep -q 'jdbc:mysql://\[REDACTED\]' "$runtime_directory/candidate-failure.log"
+if grep -q 'must-not-survive\|database.example' "$runtime_directory/candidate-failure.log"; then
+  echo "Candidate failure log contains an unredacted sensitive value." >&2
+  exit 1
+fi
+
+echo "Production deployment, rollback and sanitized candidate-log tests passed."

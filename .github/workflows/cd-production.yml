@@ -1,0 +1,312 @@
+name: CD - Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character SHA from main already published to ECR
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate production release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    env:
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+    outputs:
+      commit_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      # Obtiene las guardias versionadas desde main. Este job no solicita
+      # credenciales AWS ni espera aprobación del Environment todavía.
+      - name: Check out workflow safeguards
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Rechaza ejecuciones desde otra rama y cualquier referencia que no sea
+      # un SHA Git completo, minúsculo e inmutable.
+      - name: Validate workflow context and full SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+          production_cd_require_main_ref "$GITHUB_REF"
+          production_cd_require_full_sha "$REQUESTED_SHA"
+
+      # La API de GitHub demuestra que el SHA es main o uno de sus antecesores
+      # y que su ejecución CI de push terminó satisfactoriamente.
+      - name: Verify commit belongs to main and passed CI
+        id: commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+
+          comparison="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/compare/${REQUESTED_SHA}...main" \
+            --jq '.status')"
+          production_cd_require_main_membership "$comparison"
+
+          ci_conclusion="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow ci.yml \
+            --branch main \
+            --commit "$REQUESTED_SHA" \
+            --event push \
+            --limit 1 \
+            --json conclusion \
+            --jq '.[0].conclusion // ""')"
+          production_cd_require_successful_ci "$ci_conclusion"
+
+          echo "sha=$REQUESTED_SHA" >> "$GITHUB_OUTPUT"
+
+  deploy-production:
+    name: Deploy production through SSM
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://api.nitrosgames64.com
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+      PRODUCTION_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+      IMAGE_SHA: ${{ needs.preflight.outputs.commit_sha }}
+
+    steps:
+      # Descarga exactamente el commit aprobado. Compose y deploy.sh provienen
+      # de la misma revisión que identifica a la imagen inmutable.
+      - name: Check out selected commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.IMAGE_SHA }}
+          persist-credentials: false
+
+      # Valida variables, sintaxis Bash, binding ALB y finales LF antes de
+      # solicitar una identidad AWS. Nunca se transporta runtime.env.
+      - name: Validate production bundle and variables
+        shell: bash
+        env:
+          AWS_PRODUCTION_DEPLOY_ROLE_ARN: ${{ vars.AWS_PRODUCTION_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+          production_cd_require_main_ref "$GITHUB_REF"
+          production_cd_require_full_sha "$IMAGE_SHA"
+          test -n "$AWS_REGION"
+          test -n "$ECR_REPOSITORY"
+          test -n "$PRODUCTION_INSTANCE_ID"
+          test -n "$AWS_PRODUCTION_DEPLOY_ROLE_ARN"
+          [[ "$PRODUCTION_INSTANCE_ID" =~ ^i-[0-9a-f]{17}$ ]]
+          bash -n deploy/production/deploy.sh
+          grep -qx '      - 8080:8080' deploy/production/compose.yaml
+          ! grep -q '127\.0\.0\.1:8080:8080' deploy/production/compose.yaml
+          if grep -q $'\r' \
+            deploy/production/compose.yaml \
+            deploy/production/deploy.sh \
+            deploy/production/release_guard.sh; then
+            echo "Production deployment files must use LF line endings." >&2
+            exit 65
+          fi
+
+      # El Environment production cambia el subject OIDC. AWS entrega
+      # credenciales efímeras solo al rol limitado de despliegue productivo.
+      - name: Configure AWS production credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-production-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Comprueba que la imagen SHA ya existe y que la EC2 exacta está Online.
+      # Producción nunca construye ni publica una imagen sustitutiva.
+      - name: Verify immutable image and production target
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          app_image="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_SHA}"
+          image_digest="$(aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_SHA" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text 2>/dev/null || true)"
+          production_cd_require_ecr_image "$image_digest"
+
+          ping_status="$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$PRODUCTION_INSTANCE_ID" \
+            --query 'InstanceInformationList[0].PingStatus' \
+            --output text)"
+          if [[ "$ping_status" != "Online" ]]; then
+            echo "Production is not Online in SSM (status: $ping_status)." >&2
+            exit 71
+          fi
+
+          echo "image=$app_image" >> "$GITHUB_OUTPUT"
+          echo "digest=$image_digest" >> "$GITHUB_OUTPUT"
+
+      # Empaqueta solo Compose y deploy.sh desde el SHA seleccionado, los
+      # instala atómicamente mediante SSM y ejecuta el rollback ya probado.
+      - name: Synchronize bundle and deploy immutable image
+        id: deployment
+        shell: bash
+        env:
+          APP_IMAGE: ${{ steps.release.outputs.image }}
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+
+          install -d -m 0750 production-bundle
+          install -m 0644 deploy/production/compose.yaml production-bundle/compose.yaml
+          install -m 0750 deploy/production/deploy.sh production-bundle/deploy.sh
+          tar --create --gzip --file production-deploy.tgz --directory production-bundle .
+          bundle="$(base64 --wrap=0 production-deploy.tgz)"
+          archive="/tmp/nitros-games-production-${GITHUB_RUN_ID}.tgz"
+          bundle_dir="/tmp/nitros-games-production-${GITHUB_RUN_ID}"
+
+          parameters="$(jq --compact-output --null-input \
+            --arg bundle "$bundle" \
+            --arg image "$APP_IMAGE" \
+            --arg region "$AWS_REGION" \
+            --arg archive "$archive" \
+            --arg bundle_dir "$bundle_dir" \
+            '{commands: [
+              "set -euo pipefail",
+              ("archive=" + ($archive | @sh)),
+              ("bundle_dir=" + ($bundle_dir | @sh)),
+              "cleanup() { rm -rf \"$bundle_dir\" \"$archive\" /opt/nitros-games/compose.yaml.candidate /opt/nitros-games/deploy.sh.candidate; }",
+              "trap cleanup EXIT",
+              "install -d -m 0750 /opt/nitros-games",
+              ("printf %s " + ($bundle | @sh) + " | base64 --decode > \"$archive\""),
+              "rm -rf \"$bundle_dir\"",
+              "install -d -m 0700 \"$bundle_dir\"",
+              "tar --extract --gzip --file \"$archive\" --directory \"$bundle_dir\"",
+              "bash -n \"$bundle_dir/deploy.sh\"",
+              "grep -qx '\''      - 8080:8080'\'' \"$bundle_dir/compose.yaml\"",
+              "! grep -q '\''127\\.0\\.0\\.1:8080:8080'\'' \"$bundle_dir/compose.yaml\"",
+              "install -o root -g root -m 0640 \"$bundle_dir/compose.yaml\" /opt/nitros-games/compose.yaml.candidate",
+              "install -o root -g root -m 0750 \"$bundle_dir/deploy.sh\" /opt/nitros-games/deploy.sh.candidate",
+              "mv -f /opt/nitros-games/compose.yaml.candidate /opt/nitros-games/compose.yaml",
+              "mv -f /opt/nitros-games/deploy.sh.candidate /opt/nitros-games/deploy.sh",
+              ("/opt/nitros-games/deploy.sh " + ($image | @sh) + " " + ($region | @sh)),
+              "cleanup",
+              "trap - EXIT"
+            ]}')"
+
+          command_id="$(aws ssm send-command \
+            --instance-ids "$PRODUCTION_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${IMAGE_SHA} to production" \
+            --timeout-seconds 900 \
+            --parameters "$parameters" \
+            --query Command.CommandId \
+            --output text)"
+
+          status="Pending"
+          for attempt in $(seq 1 180); do
+            status="$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$PRODUCTION_INSTANCE_ID" \
+              --query Status \
+              --output text 2>/dev/null || true)"
+            case "$status" in
+              Success|Cancelled|Failed|TimedOut) break ;;
+            esac
+            sleep 5
+          done
+
+          invocation="$(aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$PRODUCTION_INSTANCE_ID" \
+            --output json)"
+          remote_stdout="$(jq --raw-output '.StandardOutputContent' <<< "$invocation")"
+          deployment_result="$(sed -n 's/^DEPLOYMENT_RESULT=//p' <<< "$remote_stdout" | tail -n 1)"
+          deployed_image="$(sed -n 's/^DEPLOYED_IMAGE=//p' <<< "$remote_stdout" | tail -n 1)"
+          restored_image="$(sed -n 's/^RESTORED_IMAGE=//p' <<< "$remote_stdout" | tail -n 1)"
+          candidate_log="$(sed -n 's/^CANDIDATE_LOG=//p' <<< "$remote_stdout" | tail -n 1)"
+
+          {
+            echo "### Production deployment"
+            echo "- SHA: \`$IMAGE_SHA\`"
+            echo "- Image: \`$APP_IMAGE\`"
+            echo "- SSM command: \`$command_id\`"
+            echo "- SSM status: \`${status:-unknown}\`"
+            echo "- Runtime result: \`${deployment_result:-unknown}\`"
+            if [[ -n "$restored_image" ]]; then
+              echo "- Restored image SHA: \`${restored_image##*:}\`"
+            fi
+            if [[ -n "$candidate_log" ]]; then
+              echo "- Sanitized candidate log retained on EC2: \`$candidate_log\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "command_id=$command_id" >> "$GITHUB_OUTPUT"
+          echo "deployment_result=${deployment_result:-unknown}" >> "$GITHUB_OUTPUT"
+
+          failed=0
+          production_cd_require_ssm_success "$status" || failed=1
+          production_cd_require_deployment_success "$deployment_result" || failed=1
+          if [[ "$deployment_result" == "success" && "$deployed_image" != "$APP_IMAGE" ]]; then
+            echo "The EC2 reported a different deployed image." >&2
+            failed=1
+          fi
+          if [[ "$failed" -ne 0 ]]; then
+            echo "Production deployment failed; inspect SSM command $command_id." >&2
+            exit 1
+          fi
+
+      # Verifica desde Internet que ALB, TLS y Spring Boot responden y realiza
+      # un GET público representativo. No ejecuta mutaciones ADMIN.
+      - name: Verify public readiness and API smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+          readiness_body="$(mktemp)"
+          trap 'rm -f "$readiness_body"' EXIT
+
+          readiness_status="$(curl --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            --max-time 15 \
+            --output "$readiness_body" \
+            --write-out '%{http_code}' \
+            https://api.nitrosgames64.com/actuator/health/readiness || true)"
+          smoke_status="$(curl --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            --max-time 15 \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            https://api.nitrosgames64.com/api/v1/game-genres || true)"
+
+          {
+            echo "### Production public verification"
+            echo "- Readiness HTTP: \`${readiness_status:-transport-error}\`"
+            echo "- API smoke HTTP: \`${smoke_status:-transport-error}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          production_cd_require_http_200 "Public readiness" "$readiness_status"
+          jq --exit-status '.status == "UP"' "$readiness_body" >/dev/null
+          production_cd_require_http_200 "Public API smoke test" "$smoke_status"

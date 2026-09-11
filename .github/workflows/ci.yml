@@ -28,6 +28,7 @@ jobs:
         root:
           - bootstrap
           - staging
+          - production/runtime
     defaults:
       run:
         working-directory: infra/terraform/${{ matrix.root }}
@@ -113,10 +114,15 @@ jobs:
         with:
           persist-credentials: false
 
-      # Simula un despliegue saludable y otro con readiness fallido. El segundo
-      # debe restaurar la imagen anterior antes de devolver el error esperado.
-      - name: Test staging deployment rollback
-        run: bash deploy/staging/deploy_test.sh
+      # Valida sintaxis y contratos del despliegue de producción, incluidos el
+      # SHA completo, los guards externos y la sanitización del rollback.
+      - name: Test deployment contracts
+        run: |
+          bash -n deploy/production/deploy.sh
+          bash -n deploy/production/release_guard.sh
+          bash deploy/staging/deploy_test.sh
+          bash deploy/production/deploy_test.sh
+          bash deploy/production/release_guard_test.sh
 
       # Activa el builder moderno y la caché compartida de GitHub Actions.
       - name: Set up Docker Buildx

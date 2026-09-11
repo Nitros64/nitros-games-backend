@@ -57,3 +57,13 @@ output "api_certificate_arn" {
   description = "ACM certificate protecting the production API hostname."
   value       = aws_acm_certificate.api.arn
 }
+
+output "github_actions_production_role_arn" {
+  description = "OIDC role used by the protected production GitHub Environment."
+  value       = aws_iam_role.github_production_deployer.arn
+}
+
+output "trusted_github_environment_subject" {
+  description = "Exact GitHub OIDC subject allowed to assume the production deployment role."
+  value       = "repo:${var.github_owner}/${var.github_repository}:environment:${var.github_environment}"
+}
