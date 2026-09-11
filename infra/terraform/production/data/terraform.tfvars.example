@@ -3,6 +3,13 @@ project_name         = "nitros-games-backend"
 environment          = "production"
 mysql_engine_version = "8.4.10"
 
+database_enabled                = true
+database_hibernation_authorized = false
+restore_snapshot_identifier     = null
+hibernation_snapshot_identifier = "nitros-games-backend-production-hibernation-20260911"
+
+# Before a future approved deletion, replace this with a unique value such as
+# nitros-games-backend-production-hibernation-final-YYYYMMDD.
 final_snapshot_identifier = "nitros-games-backend-production-mysql-final"
 
 additional_tags = {

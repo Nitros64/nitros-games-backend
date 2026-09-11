@@ -1,26 +1,41 @@
 output "db_instance_identifier" {
   description = "Production RDS instance identifier."
-  value       = aws_db_instance.mysql.identifier
+  value       = one(aws_db_instance.mysql[*].identifier)
 }
 
 output "db_endpoint" {
   description = "Production RDS endpoint including its port."
-  value       = aws_db_instance.mysql.endpoint
+  value       = one(aws_db_instance.mysql[*].endpoint)
 }
 
 output "db_port" {
   description = "Production MySQL port."
-  value       = aws_db_instance.mysql.port
+  value       = one(aws_db_instance.mysql[*].port)
 }
 
 output "db_name" {
   description = "Initial database managed by Flyway at application startup."
-  value       = aws_db_instance.mysql.db_name
+  value       = one(aws_db_instance.mysql[*].db_name)
 }
 
 output "master_secret_arn" {
   description = "ARN of the master credential secret generated and managed by RDS."
-  value       = try(aws_db_instance.mysql.master_user_secret[0].secret_arn, null)
+  value       = try(one(aws_db_instance.mysql[*].master_user_secret[0].secret_arn), null)
+}
+
+output "hibernation_snapshot_identifier" {
+  description = "Canonical manual RDS snapshot retained for production restoration."
+  value       = aws_db_snapshot.hibernation.db_snapshot_identifier
+}
+
+output "hibernation_snapshot_arn" {
+  description = "ARN of the canonical encrypted production hibernation snapshot."
+  value       = aws_db_snapshot.hibernation.db_snapshot_arn
+}
+
+output "hibernation_snapshot_status" {
+  description = "Current provider-observed status of the canonical hibernation snapshot."
+  value       = aws_db_snapshot.hibernation.status
 }
 
 output "application_db_secret_arn" {

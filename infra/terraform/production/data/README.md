@@ -176,11 +176,32 @@ Terraform never connects to private MySQL through a MySQL provider,
 - snapshot tags copied from the instance;
 - Terraform `prevent_destroy` enabled.
 
-The final snapshot identifier is stable so normal plans do not change every
-day. Before an intentional deletion, choose a new reviewed identifier if a
-snapshot with the configured name already exists. A future hibernation workflow
-must explicitly and separately disable deletion protection and
-`prevent_destroy`; this root does not implement hibernation.
+The canonical manual recovery point is managed as
+`aws_db_snapshot.hibernation` with identifier
+`nitros-games-backend-production-hibernation-20260911` and Terraform
+`prevent_destroy`. Its source is the stable database identifier rather than a
+counted instance expression, so the snapshot remains valid and managed after
+`database_enabled=false`. A block-level dependency orders its initial creation
+after the live RDS instance without retaining an invalid `[0]` reference.
+
+H1 leaves both database protections active. `database_enabled` defaults to
+`true`, `database_hibernation_authorized` defaults to `false`, and the latter
+keeps AWS deletion protection enabled. Terraform `prevent_destroy` remains on
+the RDS resource and must not be removed until the canonical snapshot has been
+independently verified as `available` and a later teardown plan is approved.
+
+Before a later intentional deletion, set `final_snapshot_identifier` to a new
+value matching
+`nitros-games-backend-production-hibernation-final-YYYYMMDD`. Validation
+requires that dated form and prevents it from matching the canonical manual
+snapshot whenever hibernation is authorized. This avoids collisions with both
+the 20260911 manual snapshot and a previous final snapshot.
+
+`restore_snapshot_identifier` remains `null` during H1. During a future
+restoration it identifies the retained source snapshot; snapshot-owned database
+name and master-user settings are then inherited rather than supplied as new
+database creation arguments. Restoration must be planned and reviewed before
+recreating runtime.
 
 S3 is persistent data and should normally remain untouched while production
 compute is stopped or destroyed. Its storage and retained object versions will
