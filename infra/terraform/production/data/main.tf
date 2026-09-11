@@ -1,5 +1,6 @@
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
+  name_prefix            = "${var.project_name}-${var.environment}"
+  db_instance_identifier = "${var.project_name}-${var.environment}-mysql"
 
   foundation_state = {
     bucket = "nitros-games-backend-tfstate-529601496188-eu-west-1"
@@ -75,17 +76,20 @@ resource "aws_db_parameter_group" "mysql84" {
 }
 
 resource "aws_db_instance" "mysql" {
-  identifier = "${local.name_prefix}-mysql"
+  count = var.database_enabled ? 1 : 0
+
+  identifier = local.db_instance_identifier
 
   engine         = "mysql"
   engine_version = var.mysql_engine_version
   instance_class = "db.t4g.micro"
 
-  db_name  = "nitrosgames"
-  username = "nitros_admin"
-  port     = 3306
+  snapshot_identifier = var.restore_snapshot_identifier
+  db_name             = var.restore_snapshot_identifier == null ? "nitrosgames" : null
+  username            = var.restore_snapshot_identifier == null ? "nitros_admin" : null
+  port                = 3306
 
-  manage_master_user_password = true
+  manage_master_user_password = var.restore_snapshot_identifier == null ? true : null
 
   allocated_storage     = 20
   max_allocated_storage = 100
@@ -108,7 +112,7 @@ resource "aws_db_instance" "mysql" {
   copy_tags_to_snapshot    = true
   delete_automated_backups = false
 
-  deletion_protection       = true
+  deletion_protection       = !var.database_hibernation_authorized
   skip_final_snapshot       = false
   final_snapshot_identifier = var.final_snapshot_identifier
 
@@ -121,5 +125,29 @@ resource "aws_db_instance" "mysql" {
 
   tags = {
     Name = "${local.name_prefix}-mysql"
+  }
+}
+
+moved {
+  from = aws_db_instance.mysql
+  to   = aws_db_instance.mysql[0]
+}
+
+resource "aws_db_snapshot" "hibernation" {
+  db_instance_identifier = local.db_instance_identifier
+  db_snapshot_identifier = var.hibernation_snapshot_identifier
+
+  # The stable source identifier keeps this resource valid after the database
+  # count becomes zero. This block-level dependency orders H1 creation without
+  # retaining an invalid aws_db_instance.mysql[0] reference.
+  depends_on = [aws_db_instance.mysql]
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    Name    = var.hibernation_snapshot_identifier
+    Purpose = "Production hibernation recovery point"
   }
 }
