@@ -8,6 +8,12 @@ readonly fake_bin="$test_root/bin"
 readonly previous_image="123456789012.dkr.ecr.eu-west-1.amazonaws.com/nitros-games-backend:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 readonly candidate_image="123456789012.dkr.ecr.eu-west-1.amazonaws.com/nitros-games-backend:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
+grep -q '^      SPRING_PROFILES_ACTIVE: staging$' "$script_directory/compose.yaml"
+if grep -q '^      SPRING_PROFILES_ACTIVE: prod$' "$script_directory/compose.yaml"; then
+  echo "Staging Compose must not activate the prod profile." >&2
+  exit 1
+fi
+
 cleanup() {
   rm -rf "$test_root"
 }
@@ -40,10 +46,12 @@ if [[ "${1:-}" != "compose" ]]; then
   exit 0
 fi
 
+printf '%s\n' "$*" >> "$FAKE_DOCKER_LOG"
+
 compose_command=""
 for argument in "$@"; do
   case "$argument" in
-    config|pull|up|ps)
+    config|pull|up|logs|ps)
       compose_command="$argument"
       break
       ;;
@@ -52,6 +60,10 @@ done
 
 if [[ "$compose_command" == "ps" ]]; then
   echo "api healthy"
+fi
+
+if [[ "$compose_command" == "logs" ]]; then
+  echo "simulated candidate Spring startup exception"
 fi
 EOF
 
@@ -93,6 +105,7 @@ success_output="$test_root/success.out"
 PATH="$fake_bin:$PATH" \
 NITROS_GAMES_DEPLOYMENT_DIRECTORY="$success_directory" \
 FAKE_AWS_LOG="$test_root/success-aws.log" \
+FAKE_DOCKER_LOG="$test_root/success-docker.log" \
 FAKE_CURL_COUNT_FILE="$test_root/success-curl-count" \
 FAKE_CURL_FAILURES=0 \
   bash "$deploy_script" "$candidate_image" eu-west-1 > "$success_output" 2>&1
@@ -124,6 +137,7 @@ set +e
 PATH="$fake_bin:$PATH" \
 NITROS_GAMES_DEPLOYMENT_DIRECTORY="$rollback_directory" \
 FAKE_AWS_LOG="$test_root/rollback-aws.log" \
+FAKE_DOCKER_LOG="$test_root/rollback-docker.log" \
 FAKE_CURL_COUNT_FILE="$test_root/rollback-curl-count" \
 FAKE_CURL_FAILURES=1 \
   bash "$deploy_script" "$candidate_image" eu-west-1 > "$rollback_output" 2>&1
@@ -140,9 +154,19 @@ grep -q '^DEPLOYMENT_RESULT=rolled_back$' "$rollback_output"
 grep -q "^FAILED_IMAGE=$candidate_image$" "$rollback_output"
 grep -q "^RESTORED_IMAGE=$previous_image$" "$rollback_output"
 grep -q "^APP_IMAGE=$previous_image$" "$rollback_directory/.env"
+grep -q '^Candidate API logs (last 200 lines):$' "$rollback_output"
+grep -q '^simulated candidate Spring startup exception$' "$rollback_output"
+logs_line="$(grep -n 'logs --no-color --tail=200 api' "$test_root/rollback-docker.log" | cut -d: -f1)"
+api_up_lines="$(grep -n 'up --detach --no-deps --wait --wait-timeout 240 api' \
+  "$test_root/rollback-docker.log" | cut -d: -f1)"
+rollback_up_line="$(printf '%s\n' "$api_up_lines" | tail -n 1)"
+if [[ -z "$logs_line" || -z "$rollback_up_line" || "$logs_line" -ge "$rollback_up_line" ]]; then
+  echo "Candidate logs were not captured before rollback recreated the API." >&2
+  exit 1
+fi
 if grep -q 'test-identity-secret' "$rollback_output"; then
   echo "Identity secret was printed in rollback output." >&2
   exit 1
 fi
 
-echo "Staging identity configuration, deployment success and rollback tests passed."
+echo "Staging identity configuration, deployment success, candidate logging and rollback tests passed."

@@ -181,6 +181,12 @@ if [[ $deployment_status -eq 0 ]]; then
 fi
 
 echo "Candidate image failed readiness with status $deployment_status." >&2
+# Preserve the candidate's Spring startup exception before a rollback recreates
+# the API container. Compose logs do not expose the container environment.
+echo "Candidate API logs (last 200 lines):" >&2
+compose_with_environment "$environment_file" logs --no-color --tail=200 api >&2 || {
+  echo "Candidate API logs could not be collected." >&2
+}
 if [[ -n "$previous_image" && "$previous_image" != "$app_image" ]]; then
   echo "Restoring previous image $previous_image." >&2
   set_app_image "$previous_image"
