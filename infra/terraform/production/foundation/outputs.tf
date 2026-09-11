@@ -3,6 +3,16 @@ output "aws_region" {
   value       = var.aws_region
 }
 
+output "public_hosted_zone_id" {
+  description = "Route 53 public hosted zone for the official production domain."
+  value       = aws_route53_zone.production.zone_id
+}
+
+output "public_name_servers" {
+  description = "Authoritative name servers assigned to the production public hosted zone."
+  value       = aws_route53_zone.production.name_servers
+}
+
 output "vpc_id" {
   description = "Production VPC ID."
   value       = aws_vpc.production.id
