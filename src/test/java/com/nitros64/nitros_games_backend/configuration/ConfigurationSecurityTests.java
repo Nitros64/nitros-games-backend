@@ -1,7 +1,10 @@
 package com.nitros64.nitros_games_backend.configuration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.env.Profiles;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,18 +19,21 @@ class ConfigurationSecurityTests {
     void runtimeConfigurationDoesNotContainLiteralDatabasePasswords() throws IOException {
         Properties common = loadProperties("application.properties");
         Properties local = loadProperties("application-local.properties");
+        Properties runtime = loadProperties("application-runtime.properties");
         Properties production = loadProperties("application-prod.properties");
 
         assertNull(common.getProperty("spring.datasource.password"));
         assertEquals("${DB_PASSWORD}", local.getProperty("spring.datasource.password"));
-        assertEquals("${DB_PASSWORD}", production.getProperty("spring.datasource.password"));
+        assertEquals("${DB_PASSWORD}", runtime.getProperty("spring.datasource.password"));
+        assertNull(production.getProperty("spring.datasource.password"));
         assertNull(local.getProperty("app.security.admin-password"));
+        assertNull(runtime.getProperty("app.security.admin-password"));
         assertNull(production.getProperty("app.security.admin-password"));
     }
 
     @Test
-    void productionRequiresExternalDatabaseCredentials() throws IOException {
-        Properties properties = loadProperties("application-prod.properties");
+    void deployedRuntimeRequiresExternalDatabaseCredentials() throws IOException {
+        Properties properties = loadProperties("application-runtime.properties");
 
         assertEquals("${DB_URL}", properties.getProperty("spring.datasource.url"));
         assertEquals("${DB_USERNAME}", properties.getProperty("spring.datasource.username"));
@@ -71,35 +77,44 @@ class ConfigurationSecurityTests {
     }
 
     @Test
-    void productionUsesSafeJpaSettings() throws IOException {
-        Properties properties = loadProperties("application-prod.properties");
+    void deployedProfilesShareRuntimeConfigurationAndSafeJpaSettings() throws IOException {
+        Properties common = loadProperties("application.properties");
+        Properties runtime = loadProperties("application-runtime.properties");
 
-        assertEquals("validate", properties.getProperty("spring.jpa.hibernate.ddl-auto"));
-        assertEquals("false", properties.getProperty("spring.jpa.open-in-view"));
-        assertEquals("false", properties.getProperty("spring.jpa.show-sql"));
+        assertEquals("runtime", common.getProperty("spring.profiles.group.prod"));
+        assertEquals("runtime", common.getProperty("spring.profiles.group.staging"));
+        assertEquals("validate", common.getProperty("spring.jpa.hibernate.ddl-auto"));
+        assertEquals("false", common.getProperty("spring.jpa.open-in-view"));
+        assertEquals("false", common.getProperty("spring.jpa.show-sql"));
         assertEquals(
                 "false",
-                properties.getProperty("spring.jpa.properties.hibernate.enable_lazy_load_no_trans"));
-        assertEquals("graceful", properties.getProperty("server.shutdown"));
+                common.getProperty("spring.jpa.properties.hibernate.enable_lazy_load_no_trans"));
+        assertEquals("graceful", runtime.getProperty("server.shutdown"));
         assertEquals(
                 "25s",
-                properties.getProperty("spring.lifecycle.timeout-per-shutdown-phase"));
+                runtime.getProperty("spring.lifecycle.timeout-per-shutdown-phase"));
+    }
+
+    @Test
+    void prodAndStagingActivateTheSharedRuntimeProfile() {
+        assertRuntimeProfileActivated("prod");
+        assertRuntimeProfileActivated("staging");
     }
 
     @Test
     void productionUsesStructuredLogsAndRequestLatencyHistograms() throws IOException {
         Properties common = loadProperties("application.properties");
-        Properties production = loadProperties("application-prod.properties");
+        Properties runtime = loadProperties("application-runtime.properties");
 
         assertEquals(
                 "health,prometheus",
                 common.getProperty("management.endpoints.web.exposure.include"));
         assertEquals(
                 "logstash",
-                production.getProperty("logging.structured.format.console"));
+                runtime.getProperty("logging.structured.format.console"));
         assertEquals(
                 "true",
-                production.getProperty(
+                runtime.getProperty(
                         "management.metrics.distribution.percentiles-histogram.http.server.requests"));
     }
 
@@ -109,6 +124,19 @@ class ConfigurationSecurityTests {
             properties.load(input);
         }
         return properties;
+    }
+
+    private void assertRuntimeProfileActivated(String deployedProfile) {
+        new ApplicationContextRunner()
+                .withInitializer(new ConfigDataApplicationContextInitializer())
+                .withPropertyValues("spring.profiles.active=" + deployedProfile)
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    assertEquals(
+                            true,
+                            context.getEnvironment().acceptsProfiles(Profiles.of("runtime")));
+                    assertEquals("graceful", context.getEnvironment().getProperty("server.shutdown"));
+                });
     }
 
 }

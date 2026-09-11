@@ -76,7 +76,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: staging
       DB_URL: jdbc:mysql://mysql:3306/nitrosgames?sslMode=DISABLED&allowPublicKeyRetrieval=true
       DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
