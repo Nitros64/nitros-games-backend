@@ -6,7 +6,13 @@ application security group and Route 53 public hosted zone; production data
 owns RDS, its managed secret and the host-image S3 bucket. Destroying this root
 must not destroy either persistent state or the public hosted zone.
 
-## Architecture
+Production is currently hibernated. `runtime_enabled` defaults to `false`, the
+runtime state is empty, and a normal plan creates nothing. All 23 managed
+runtime resources are gated by that flag, including EC2, ALB, ACM, DNS, IAM and
+security-group rules. Re-enablement must be explicit and must happen only after
+database restoration. See [`../HIBERNATION.md`](../HIBERNATION.md).
+
+## Enabled architecture
 
 ```text
 Internet
@@ -55,6 +61,10 @@ in public subnet `a`; the ALB spans public subnets `a` and `b`. Terraform
 performs no mutation of either source state object, although this runtime state
 owns the narrowly scoped ingress rule attached to the foundation-owned
 application security group.
+
+Remote-state availability checks are enforced only when
+`runtime_enabled=true`. This lets the hibernated runtime plan safely consume
+null RDS outputs without weakening the contracts used during restoration.
 
 Bootstrap owns the ECR repository in local bootstrap state, so this root looks
 up the existing `nitros-games-backend` repository by name rather than copying
@@ -179,10 +189,16 @@ terraform validate
 terraform plan -no-color
 ```
 
-Do not apply until the plan has been reviewed. An already provisioned runtime
-should normally plan no changes. Adopting production CD adds only the GitHub
-deployer role and its inline policy. The application EC2 instance, foundation,
-RDS, S3 and Cognito must not change.
+The normal hibernated plan must report `No changes`. After RDS has been restored
+and verified, prepare an explicit reviewed enablement plan with:
+
+```shell
+terraform plan -var='runtime_enabled=true' -out=production-runtime-restore.tfplan
+```
+
+Do not apply until that plan has been reviewed. No `moved` blocks were needed
+for the hibernation flag because the runtime state was already empty before the
+23 resource addresses became conditional.
 
 ## Incremental cost estimate
 
@@ -193,7 +209,7 @@ At roughly 730 running hours per month in `eu-west-1`, budget approximately:
 - one public IPv4 at USD 0.005/hour: about USD 3.65/month;
 - normal data transfer and log storage, if any, are additional.
 
-The expected runtime-only baseline is therefore roughly USD 23/month, excluding
-the existing RDS/S3 and future ALB/NAT. Stopping EC2 stops instance compute and
-releases its automatically assigned public IPv4; the EBS volume remains
-billable. RDS continues billing independently.
+While `runtime_enabled=false`, none of these runtime resources exists, so this
+runtime-only baseline is zero. Retained snapshots, S3, Secrets Manager, ECR,
+Route 53/domain registration and the Terraform backend may still incur their
+own storage or recurring charges; see the H5 inventory.

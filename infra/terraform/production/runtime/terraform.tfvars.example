@@ -1,6 +1,7 @@
 aws_region            = "eu-west-1"
 project_name          = "nitros-games-backend"
 environment           = "production"
+runtime_enabled       = false
 instance_type         = "t3.small"
 root_volume_size_gib  = 20
 runtime_subnet_key    = "a"

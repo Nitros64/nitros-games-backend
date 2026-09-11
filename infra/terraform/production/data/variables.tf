@@ -43,14 +43,9 @@ variable "mysql_engine_version" {
 }
 
 variable "database_enabled" {
-  description = "Whether the production RDS compute instance should exist. Durable data resources remain managed when false."
+  description = "Whether the production RDS compute instance should exist. False is the safe hibernated state while durable data remains managed."
   type        = bool
-  default     = true
-
-  validation {
-    condition     = var.database_enabled || var.database_hibernation_authorized
-    error_message = "Disabling production RDS requires explicit database_hibernation_authorized=true."
-  }
+  default     = false
 }
 
 variable "database_hibernation_authorized" {

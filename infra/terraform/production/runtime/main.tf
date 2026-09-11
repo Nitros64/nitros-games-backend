@@ -34,16 +34,20 @@ data "terraform_remote_state" "data" {
 data "aws_partition" "current" {}
 
 data "aws_ecr_repository" "application" {
+  count = var.runtime_enabled ? 1 : 0
+
   name = var.ecr_repository_name
 }
 
 data "aws_ssm_parameter" "amazon_linux_2023" {
+  count = var.runtime_enabled ? 1 : 0
+
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 check "remote_state_contract" {
   assert {
-    condition = (
+    condition = !var.runtime_enabled || (
       data.terraform_remote_state.foundation.outputs.aws_region == var.aws_region
       && data.terraform_remote_state.data.outputs.db_port == 3306
     )
@@ -51,7 +55,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = contains(
+    condition = !var.runtime_enabled || contains(
       keys(data.terraform_remote_state.foundation.outputs.public_subnet_ids),
       var.runtime_subnet_key
     )
@@ -59,7 +63,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = (
+    condition = !var.runtime_enabled || (
       length(data.terraform_remote_state.foundation.outputs.public_subnet_ids) == 2
       && data.terraform_remote_state.foundation.outputs.vpc_id != ""
       && data.terraform_remote_state.foundation.outputs.application_security_group_id != ""
@@ -69,7 +73,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = (
+    condition = !var.runtime_enabled || (
       data.terraform_remote_state.data.outputs.application_db_secret_arn != ""
       && data.terraform_remote_state.data.outputs.host_images_bucket_arn != ""
       && data.terraform_remote_state.data.outputs.db_endpoint != ""
@@ -80,12 +84,14 @@ check "remote_state_contract" {
 }
 
 resource "aws_instance" "application" {
-  ami                         = data.aws_ssm_parameter.amazon_linux_2023.value
+  count = var.runtime_enabled ? 1 : 0
+
+  ami                         = data.aws_ssm_parameter.amazon_linux_2023[0].value
   instance_type               = var.instance_type
   subnet_id                   = data.terraform_remote_state.foundation.outputs.public_subnet_ids[var.runtime_subnet_key]
   vpc_security_group_ids      = [data.terraform_remote_state.foundation.outputs.application_security_group_id]
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.application.name
+  iam_instance_profile        = aws_iam_instance_profile.application[0].name
   monitoring                  = false
   user_data_replace_on_change = true
   user_data = replace(

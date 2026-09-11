@@ -5,6 +5,12 @@ for MySQL and the private S3 bucket for uploaded host images. It does not create
 application compute, load balancing, identity, deployment automation or
 application schema objects.
 
+Production is currently hibernated. The RDS instance is absent while two
+encrypted recovery snapshots, the application database secret metadata, S3,
+the subnet group and the parameter group remain. See
+[`../HIBERNATION.md`](../HIBERNATION.md) for the authoritative recovery record
+and restoration order.
+
 ## Architecture
 
 ```text
@@ -102,12 +108,11 @@ configure the current Amazon RDS CA trust chain. The staging-only
 
 ## Credentials
 
-`manage_master_user_password = true` instructs RDS to generate the master
-password and keep it in an AWS-managed Secrets Manager secret encrypted with
-the default Secrets Manager KMS key. Terraform exposes only the secret ARN, not
-the password. The application database user and least-privilege grants belong
-to a later runtime/bootstrap delivery; the master user must not become the
-long-term application credential.
+When RDS exists, `manage_master_user_password = true` instructs it to generate
+the master password and keep it in an RDS-managed Secrets Manager secret.
+Terraform exposes only the secret ARN, not the password. AWS removed that
+RDS-managed secret with the H4 database deletion. The independently managed
+`nitros_app` application secret remains retained for restoration.
 
 ## Flyway startup contract
 
@@ -170,11 +175,11 @@ Terraform never connects to private MySQL through a MySQL provider,
 - seven-day automated backup retention;
 - backup window `01:00-02:00 UTC`;
 - maintenance window `sun:03:00-sun:04:00 UTC`;
-- deletion protection enabled;
+- deletion protection enabled whenever RDS is restored normally;
 - final snapshot required;
 - automated backups retained when the instance is deleted;
 - snapshot tags copied from the instance;
-- Terraform `prevent_destroy` enabled.
+- Terraform `prevent_destroy` enabled for every restored RDS instance.
 
 The canonical manual recovery point is managed as
 `aws_db_snapshot.hibernation` with identifier
@@ -184,11 +189,30 @@ counted instance expression, so the snapshot remains valid and managed after
 `database_enabled=false`. A block-level dependency orders its initial creation
 after the live RDS instance without retaining an invalid `[0]` reference.
 
-H1 leaves both database protections active. `database_enabled` defaults to
-`true`, `database_hibernation_authorized` defaults to `false`, and the latter
-keeps AWS deletion protection enabled. Terraform `prevent_destroy` remains on
-the RDS resource and must not be removed until the canonical snapshot has been
-independently verified as `available` and a later teardown plan is approved.
+The checked-in defaults represent the stable hibernated state:
+`database_enabled=false` and `database_hibernation_authorized=false`. A normal
+plan therefore cannot recreate database compute and carries no destructive
+authorization. Terraform `prevent_destroy` protects the instance after a
+future restoration.
+
+Temporary destructive authorization must never be committed in an
+automatically loaded `*.auto.tfvars` file. The Git-ignored
+`hibernation-operation.tfvars` used for the reviewed H3/H4 operation remains
+local and explicit:
+
+```hcl
+database_enabled                = false
+database_hibernation_authorized = true
+restore_snapshot_identifier     = null
+hibernation_snapshot_identifier = "nitros-games-backend-production-hibernation-20260911"
+final_snapshot_identifier       = "nitros-games-backend-production-hibernation-final-20260911"
+```
+
+Passing it explicitly with `-var-file=hibernation-operation.tfvars` now plans
+no changes, but normal H5 validation does not require this temporarily
+authorized file. Do not commit it. H3 used the authorization to disable AWS
+deletion protection; H4 temporarily removed Terraform `prevent_destroy`; H5
+has restored that lifecycle safeguard.
 
 Before a later intentional deletion, set `final_snapshot_identifier` to a new
 value matching
@@ -197,11 +221,11 @@ requires that dated form and prevents it from matching the canonical manual
 snapshot whenever hibernation is authorized. This avoids collisions with both
 the 20260911 manual snapshot and a previous final snapshot.
 
-`restore_snapshot_identifier` remains `null` during H1. During a future
-restoration it identifies the retained source snapshot; snapshot-owned database
-name and master-user settings are then inherited rather than supplied as new
-database creation arguments. Restoration must be planned and reviewed before
-recreating runtime.
+`restore_snapshot_identifier` is `null` while hibernated. During a future
+restoration it identifies one verified retained snapshot; snapshot-owned
+database name and master-user settings are then inherited rather than supplied
+as new database creation arguments. Restoration must be planned and reviewed
+before recreating runtime.
 
 S3 is persistent data and should normally remain untouched while production
 compute is stopped or destroyed. Its storage and retained object versions will
