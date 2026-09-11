@@ -31,6 +31,12 @@ variable "environment" {
   }
 }
 
+variable "runtime_enabled" {
+  description = "Whether disposable production runtime resources should exist. False is the safe hibernated state."
+  type        = bool
+  default     = false
+}
+
 variable "api_domain_name" {
   description = "Public HTTPS hostname for the production Spring Boot API."
   type        = string

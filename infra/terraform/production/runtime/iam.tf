@@ -1,4 +1,6 @@
 data "aws_iam_policy_document" "instance_assume_role" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
@@ -11,17 +13,23 @@ data "aws_iam_policy_document" "instance_assume_role" {
 }
 
 resource "aws_iam_role" "application" {
+  count = var.runtime_enabled ? 1 : 0
+
   name               = "${local.name_prefix}-application"
   description        = "Runtime identity for the single production application instance."
-  assume_role_policy = data.aws_iam_policy_document.instance_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.instance_assume_role[0].json
 }
 
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = aws_iam_role.application.name
+  count = var.runtime_enabled ? 1 : 0
+
+  role       = aws_iam_role.application[0].name
   policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 data "aws_iam_policy_document" "ecr_pull" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     sid       = "AuthenticateToEcr"
     effect    = "Allow"
@@ -37,17 +45,21 @@ data "aws_iam_policy_document" "ecr_pull" {
       "ecr:BatchGetImage",
       "ecr:GetDownloadUrlForLayer"
     ]
-    resources = [data.aws_ecr_repository.application.arn]
+    resources = [data.aws_ecr_repository.application[0].arn]
   }
 }
 
 resource "aws_iam_role_policy" "ecr_pull" {
+  count = var.runtime_enabled ? 1 : 0
+
   name   = "pull-${var.ecr_repository_name}-images"
-  role   = aws_iam_role.application.id
-  policy = data.aws_iam_policy_document.ecr_pull.json
+  role   = aws_iam_role.application[0].id
+  policy = data.aws_iam_policy_document.ecr_pull[0].json
 }
 
 data "aws_iam_policy_document" "host_images" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     sid    = "UseHostImageObjects"
     effect = "Allow"
@@ -74,12 +86,16 @@ data "aws_iam_policy_document" "host_images" {
 }
 
 resource "aws_iam_role_policy" "host_images" {
+  count = var.runtime_enabled ? 1 : 0
+
   name   = "use-production-host-images"
-  role   = aws_iam_role.application.id
-  policy = data.aws_iam_policy_document.host_images.json
+  role   = aws_iam_role.application[0].id
+  policy = data.aws_iam_policy_document.host_images[0].json
 }
 
 data "aws_iam_policy_document" "application_database_secret" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     sid    = "ReadApplicationDatabaseCredential"
     effect = "Allow"
@@ -92,30 +108,38 @@ data "aws_iam_policy_document" "application_database_secret" {
 }
 
 resource "aws_iam_role_policy" "application_database_secret" {
+  count = var.runtime_enabled ? 1 : 0
+
   name   = "read-application-database-credential"
-  role   = aws_iam_role.application.id
-  policy = data.aws_iam_policy_document.application_database_secret.json
+  role   = aws_iam_role.application[0].id
+  policy = data.aws_iam_policy_document.application_database_secret[0].json
 }
 
 resource "aws_iam_instance_profile" "application" {
+  count = var.runtime_enabled ? 1 : 0
+
   name = "${local.name_prefix}-application"
-  role = aws_iam_role.application.name
+  role = aws_iam_role.application[0].name
 }
 
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_openid_connect_provider" "github_actions" {
+  count = var.runtime_enabled ? 1 : 0
+
   arn = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
 data "aws_iam_policy_document" "github_production_assume_role" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github_actions.arn]
+      identifiers = [data.aws_iam_openid_connect_provider.github_actions[0].arn]
     }
 
     condition {
@@ -133,17 +157,21 @@ data "aws_iam_policy_document" "github_production_assume_role" {
 }
 
 resource "aws_iam_role" "github_production_deployer" {
+  count = var.runtime_enabled ? 1 : 0
+
   name               = "${local.name_prefix}-github-deployer"
   description        = "OIDC role for approved production deployments from GitHub Actions."
-  assume_role_policy = data.aws_iam_policy_document.github_production_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.github_production_assume_role[0].json
 }
 
 data "aws_iam_policy_document" "github_production_deploy" {
+  count = var.runtime_enabled ? 1 : 0
+
   statement {
     sid       = "VerifyImmutableApplicationImage"
     effect    = "Allow"
     actions   = ["ecr:DescribeImages"]
-    resources = [data.aws_ecr_repository.application.arn]
+    resources = [data.aws_ecr_repository.application[0].arn]
   }
 
   statement {
@@ -151,7 +179,7 @@ data "aws_iam_policy_document" "github_production_deploy" {
     effect  = "Allow"
     actions = ["ssm:SendCommand"]
     resources = [
-      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.application.id}",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.application[0].id}",
       "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript"
     ]
   }
@@ -168,7 +196,9 @@ data "aws_iam_policy_document" "github_production_deploy" {
 }
 
 resource "aws_iam_role_policy" "github_production_deploy" {
+  count = var.runtime_enabled ? 1 : 0
+
   name   = "deploy-existing-image-through-ssm"
-  role   = aws_iam_role.github_production_deployer.id
-  policy = data.aws_iam_policy_document.github_production_deploy.json
+  role   = aws_iam_role.github_production_deployer[0].id
+  policy = data.aws_iam_policy_document.github_production_deploy[0].json
 }
