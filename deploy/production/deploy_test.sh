@@ -25,6 +25,12 @@ readonly mock_bin="$test_root/bin"
 mkdir -p "$deployment_directory" "$runtime_directory" "$mock_bin"
 cp "$script_directory/compose.yaml" "$deployment_directory/compose.yaml"
 
+grep -q '^      - 8080:8080$' "$deployment_directory/compose.yaml"
+if grep -q '127\.0\.0\.1:8080:8080' "$deployment_directory/compose.yaml"; then
+  echo "Production API must accept traffic from the ALB rather than bind only to loopback." >&2
+  exit 1
+fi
+
 cat > "$deployment_directory/runtime.conf" <<EOF
 APPLICATION_DB_SECRET_ARN=$secret_arn
 DB_URL=jdbc:mysql://database.example.eu-west-1.rds.amazonaws.com:3306/nitrosgames?sslMode=VERIFY_IDENTITY

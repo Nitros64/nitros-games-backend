@@ -60,6 +60,16 @@ check "remote_state_contract" {
 
   assert {
     condition = (
+      length(data.terraform_remote_state.foundation.outputs.public_subnet_ids) == 2
+      && data.terraform_remote_state.foundation.outputs.vpc_id != ""
+      && data.terraform_remote_state.foundation.outputs.application_security_group_id != ""
+      && data.terraform_remote_state.foundation.outputs.public_hosted_zone_id != ""
+    )
+    error_message = "Production foundation must expose the VPC, two public subnets, application security group and public hosted zone."
+  }
+
+  assert {
+    condition = (
       data.terraform_remote_state.data.outputs.application_db_secret_arn != ""
       && data.terraform_remote_state.data.outputs.host_images_bucket_arn != ""
       && data.terraform_remote_state.data.outputs.db_endpoint != ""
