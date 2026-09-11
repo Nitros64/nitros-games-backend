@@ -31,6 +31,17 @@ variable "environment" {
   }
 }
 
+variable "api_domain_name" {
+  description = "Public HTTPS hostname for the production Spring Boot API."
+  type        = string
+  default     = "api.nitrosgames64.com"
+
+  validation {
+    condition     = var.api_domain_name == "api.nitrosgames64.com"
+    error_message = "The production runtime API hostname must be api.nitrosgames64.com."
+  }
+}
+
 variable "instance_type" {
   description = "Initial size of the single production application instance."
   type        = string

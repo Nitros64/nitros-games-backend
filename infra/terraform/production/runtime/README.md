@@ -1,21 +1,27 @@
 # Production runtime
 
-This Terraform root owns only the first disposable production application
-runtime. Production foundation owns the VPC, subnets and security groups;
-production data owns RDS, its managed secret and the host-image S3 bucket.
-Destroying this root must not destroy either persistent state.
+This Terraform root owns the first disposable production application runtime
+and its public API endpoint. Production foundation owns the VPC, subnets,
+application security group and Route 53 public hosted zone; production data
+owns RDS, its managed secret and the host-image S3 bucket. Destroying this root
+must not destroy either persistent state or the public hosted zone.
 
 ## Architecture
 
 ```text
-Internet (outbound only)
-        |
-Production IGW
-        |
-public-a + ephemeral public IPv4
-        |
-one AL2023 x86_64 t3.small EC2
-        |-- existing application SG (zero ingress)
+Internet
+   |-- HTTP :80 -- 301 redirect --|
+   `-- HTTPS :443 -----------------|
+                                    v
+                         public Application Load Balancer
+                         across public-a and public-b
+                                    |
+                          ALB SG -> TCP/8080
+                                    |
+                         application SG -> one AL2023
+                         x86_64 t3.small EC2
+        |-- port 8080 from the ALB SG only
+        |-- no SSH ingress
         |-- SSM Session Manager
         |-- ECR pull-only
         |-- Secrets Manager: read-only application DB secret
@@ -24,11 +30,15 @@ one AL2023 x86_64 t3.small EC2
         `-- application SG -> TCP/3306 -> database SG -> private RDS
 ```
 
-There is no SSH key, inbound security-group rule, ALB, NAT Gateway, VPC
-endpoint, Auto Scaling Group, ECS or Kubernetes resource. The public IPv4 is
-used only for outbound access through the existing Internet Gateway. Until an
-ALB exists, the future Compose runtime binds the API only to
-`127.0.0.1:8080`.
+Route 53 maps only `api.nitrosgames64.com` to the IPv4 ALB. ACM issues a
+dedicated DNS-validated certificate for that hostname and the HTTPS listener
+uses TLS 1.2/1.3. Port 80 performs only a permanent HTTPS redirect. The ALB
+security group can reach port 8080 only on the application security group, and
+the application security group accepts port 8080 only from the ALB security
+group. Port 22 remains closed and SSM remains the sole administrative path.
+There is no NAT Gateway, VPC endpoint, Auto Scaling Group, ECS or Kubernetes
+resource. The apex domain and `www` remain unconfigured for the future Angular
+frontend.
 
 ## Remote-state contracts
 
@@ -38,11 +48,13 @@ The root stores its own state at:
 s3://nitros-games-backend-tfstate-529601496188-eu-west-1/production/runtime/terraform.tfstate
 ```
 
-It reads network identifiers from
-`production/foundation/terraform.tfstate` and RDS/S3 identifiers from
-`production/data/terraform.tfstate`. The runtime selects public subnet `a` and
-attaches exactly the exported application security group. Terraform performs
-no mutation of either source state.
+It reads the VPC, both public subnets, application security group and public
+hosted-zone ID from `production/foundation/terraform.tfstate`, and RDS/S3
+identifiers from `production/data/terraform.tfstate`. The EC2 runtime remains
+in public subnet `a`; the ALB spans public subnets `a` and `b`. Terraform
+performs no mutation of either source state object, although this runtime state
+owns the narrowly scoped ingress rule attached to the foundation-owned
+application security group.
 
 Bootstrap owns the ECR repository in local bootstrap state, so this root looks
 up the existing `nitros-games-backend` repository by name rather than copying
