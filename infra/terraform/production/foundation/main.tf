@@ -17,6 +17,21 @@ check "two_distinct_availability_zones" {
   }
 }
 
+# This public zone was created automatically by Route 53 Domains when the
+# production domain was registered. It is adopted with terraform import; it
+# must never be created as a second zone or replaced by an apply.
+resource "aws_route53_zone" "production" {
+  provider = aws.route53_untagged
+
+  name          = var.domain_name
+  comment       = "HostedZone created by Route53 Registrar"
+  force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "aws_vpc" "production" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true

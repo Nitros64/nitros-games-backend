@@ -31,6 +31,17 @@ variable "environment" {
   }
 }
 
+variable "domain_name" {
+  description = "Official NitrosGames production domain."
+  type        = string
+  default     = "nitrosgames64.com"
+
+  validation {
+    condition     = var.domain_name == "nitrosgames64.com"
+    error_message = "The production foundation is restricted to nitrosgames64.com."
+  }
+}
+
 variable "vpc_cidr" {
   description = "Non-overlapping IPv4 CIDR for the production VPC."
   type        = string

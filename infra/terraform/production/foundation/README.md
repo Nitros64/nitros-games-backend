@@ -1,5 +1,12 @@
 # Production network foundation
 
+The foundation state also owns the single public Route 53 hosted zone for
+`nitrosgames64.com`. Route 53 Domains created this zone during domain
+registration; Terraform adopted the existing zone rather than creating a
+second one. The zone is protected with `prevent_destroy`, retains its registrar
+comment and intentionally remains untagged to match the existing AWS object.
+Domain registration itself is not managed by Terraform.
+
 This Terraform root creates only the long-lived NitrosGames production network:
 
 - one VPC that does not overlap staging;
