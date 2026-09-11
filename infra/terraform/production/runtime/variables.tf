@@ -86,6 +86,39 @@ variable "ecr_repository_name" {
   }
 }
 
+variable "github_owner" {
+  description = "GitHub organization or user trusted by the production deployment role."
+  type        = string
+  default     = "Nitros64"
+
+  validation {
+    condition     = var.github_owner == "Nitros64"
+    error_message = "Production CD is restricted to the Nitros64 GitHub owner."
+  }
+}
+
+variable "github_repository" {
+  description = "GitHub repository trusted by the production deployment role."
+  type        = string
+  default     = "nitros-games-backend"
+
+  validation {
+    condition     = var.github_repository == "nitros-games-backend"
+    error_message = "Production CD is restricted to the nitros-games-backend repository."
+  }
+}
+
+variable "github_environment" {
+  description = "Protected GitHub Environment encoded in the production OIDC subject."
+  type        = string
+  default     = "production"
+
+  validation {
+    condition     = var.github_environment == "production"
+    error_message = "Production CD must use the production GitHub Environment."
+  }
+}
+
 variable "docker_compose_version" {
   description = "Pinned Docker Compose release installed during host bootstrap."
   type        = string

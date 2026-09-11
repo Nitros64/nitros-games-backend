@@ -102,6 +102,14 @@ that is removed immediately after reconciliation and verification. Terraform
 performs no SQL provisioning and uses no Terraform provisioner or MySQL
 provider.
 
+The separate GitHub production deployer role trusts only the OIDC subject
+`repo:Nitros64/nitros-games-backend:environment:production` with audience
+`sts.amazonaws.com`. It may verify images in the exact application ECR
+repository, send `AWS-RunShellScript` only to the production EC2 instance, and
+read SSM command/instance status. It has no Secrets Manager, S3, RDS, SSH, ECR
+push or general infrastructure permissions. Application secrets remain the
+responsibility of the EC2 runtime role.
+
 ## Runtime and deployment contract
 
 `deploy/production/compose.yaml` contains only the API. There is no MySQL,
@@ -109,9 +117,9 @@ Keycloak or host-image volume. It preserves a read-only root filesystem,
 `no-new-privileges`, dropped capabilities, a bounded `/tmp`, resource limits
 and the readiness probe.
 
-`deploy/production/deploy.sh` is a manual future deployment entry point. It
-requires an immutable ECR URI tagged with a full 40-character commit SHA and a
-root-owned `/opt/nitros-games/runtime.conf` containing only non-secret values:
+`deploy/production/deploy.sh` is the shared manual/CD deployment entry point.
+It requires an immutable ECR URI tagged with a full 40-character commit SHA and
+a root-owned `/opt/nitros-games/runtime.conf` containing only non-secret values:
 
 ```text
 APPLICATION_DB_SECRET_ARN=<data-state application_db_secret_arn>
@@ -136,8 +144,30 @@ cannot reverse Flyway migrations, so migrations must remain backward
 compatible.
 
 Use only reviewed outputs from the production identity root. Do not create
-`runtime.conf` with fake OAuth values. The application remains undeployed until
-the identity plan is applied and an initial administrator is provisioned.
+`runtime.conf` with fake OAuth values.
+
+`.github/workflows/cd-production.yml` is manually dispatched from `main` with
+a full `commit_sha`. Before entering the protected `production` Environment it
+proves the commit belongs to `main` and has a successful push CI run. After
+approval, it assumes the OIDC role, confirms that the corresponding immutable
+ECR image already exists, transports only `compose.yaml` and `deploy.sh` from
+that exact commit through SSM, and runs the established readiness/rollback
+contract. It then checks the public readiness and catalog GET endpoints. It
+does not build or publish an image and never transports `runtime.env`.
+
+Configure these non-secret GitHub Environment variables after applying the IAM
+plan:
+
+```text
+AWS_REGION=eu-west-1
+AWS_ECR_REPOSITORY=nitros-games-backend
+PRODUCTION_INSTANCE_ID=<ec2_instance_id output>
+AWS_PRODUCTION_DEPLOY_ROLE_ARN=<github_actions_production_role_arn output>
+```
+
+The `production` GitHub Environment and its required reviewers/allowed branch
+policy are repository settings and are intentionally not managed by this
+Terraform root.
 
 ## Terraform workflow
 
@@ -149,10 +179,10 @@ terraform validate
 terraform plan -no-color
 ```
 
-Do not apply until the plan has been reviewed. Expected changes are seven
-runtime resources: one IAM role, one SSM policy attachment, three inline IAM
-policies, one instance profile and one EC2 instance. Foundation, RDS and S3
-must show no changes or destroys.
+Do not apply until the plan has been reviewed. An already provisioned runtime
+should normally plan no changes. Adopting production CD adds only the GitHub
+deployer role and its inline policy. The application EC2 instance, foundation,
+RDS, S3 and Cognito must not change.
 
 ## Incremental cost estimate
 

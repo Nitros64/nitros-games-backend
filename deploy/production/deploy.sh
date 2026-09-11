@@ -14,6 +14,7 @@ readonly configuration_file="$deployment_directory/runtime.conf"
 readonly compose_file="$deployment_directory/compose.yaml"
 readonly environment_file="$runtime_directory/runtime.env"
 readonly active_image_file="$deployment_directory/active-image"
+readonly candidate_log_file="$runtime_directory/candidate-failure.log"
 readonly immutable_image_pattern="^[0-9]{12}\\.dkr\\.ecr\\.${aws_region}\\.amazonaws\\.com/nitros-games-backend:[0-9a-f]{40}$"
 
 if [[ ! "$aws_region" =~ ^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$ ]]; then
@@ -151,6 +152,17 @@ start_and_verify() {
       http://127.0.0.1:8080/actuator/health/readiness >/dev/null
 }
 
+capture_sanitized_candidate_logs() {
+  compose "$environment_file" logs --no-color --tail 200 api 2>&1 \
+    | sed -E \
+      -e 's#(jdbc:mysql://)[^[:space:]]*#\1[REDACTED]#g' \
+      -e '/password|secret|token|authorization/I s/.*/[REDACTED SENSITIVE LOG LINE]/' \
+      > "$candidate_log_file" || true
+  chmod 0600 "$candidate_log_file"
+  echo "CANDIDATE_LOG=$candidate_log_file"
+}
+
+rm -f "$candidate_log_file"
 if start_and_verify; then
   printf '%s\n' "$app_image" > "$active_image_file"
   chmod 0640 "$active_image_file"
@@ -161,6 +173,7 @@ if start_and_verify; then
 fi
 
 echo "Candidate image failed readiness." >&2
+capture_sanitized_candidate_logs
 if [[ -n "$previous_image" && "$previous_image" =~ $immutable_image_pattern ]]; then
   temporary_environment="$(mktemp "$runtime_directory/runtime.rollback.XXXXXX")"
   sed "s|^APP_IMAGE=.*$|APP_IMAGE=\"$previous_image\"|" "$environment_file" > "$temporary_environment"
