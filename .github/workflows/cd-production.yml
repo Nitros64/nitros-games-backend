@@ -82,12 +82,11 @@ jobs:
       IMAGE_SHA: ${{ needs.preflight.outputs.commit_sha }}
 
     steps:
-      # Descarga exactamente el commit aprobado. El bundle debe coincidir con
-      # la revisión usada para construir la imagen inmutable.
-      - name: Check out selected commit
+      # Los controles operativos provienen de la revisión actual de main.
+      # IMAGE_SHA identifica únicamente la aplicación inmutable a desplegar.
+      - name: Check out current production controls
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ env.IMAGE_SHA }}
           persist-credentials: false
 
       # Comprueba inputs, scripts, binding de red y finales LF antes de AWS.
