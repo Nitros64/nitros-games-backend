@@ -117,8 +117,7 @@ jobs:
               ;;
           esac
 
-          aws rds wait db-instance-available \
-            --db-instance-identifier "$PRODUCTION_DB_IDENTIFIER"
+          production_wait_for_database_status available
 
           release="$(production_read_release_metadata)"
           application_sha="$(jq --raw-output '.applicationSha' <<< "$release")"
