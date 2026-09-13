@@ -70,7 +70,8 @@ trap 'rm -rf "$temporary_directory"' EXIT
 make_plan() {
   local destination="$1"
   shift
-  jq --null-input --argjson changes "$*" '{resource_changes: $changes}' >"$destination"
+  jq --null-input --argjson changes "$*" \
+    '{resource_changes: ($changes | map(. + {mode: (.mode // "managed")}))}' >"$destination"
 }
 
 make_plan "$temporary_directory/stable.json" '[]'
@@ -115,6 +116,15 @@ production_require_plan_mode converge-restore-runtime "$temporary_directory/runt
 
 make_plan "$temporary_directory/runtime-update.json" '[{"address":"aws_instance.application[0]","change":{"actions":["update"]}}]'
 expect_failure "runtime update during restore" production_require_plan_mode converge-restore-runtime "$temporary_directory/runtime-update.json"
+make_plan "$temporary_directory/runtime-delete-during-restore.json" '[{"address":"aws_instance.application[0]","change":{"actions":["delete"]}}]'
+expect_failure "runtime delete during restore" production_require_plan_mode converge-restore-runtime \
+  "$temporary_directory/runtime-delete-during-restore.json"
+make_plan "$temporary_directory/runtime-replacement.json" '[{"address":"aws_instance.application[0]","change":{"actions":["delete","create"]}}]'
+expect_failure "runtime replacement during restore" production_require_plan_mode converge-restore-runtime \
+  "$temporary_directory/runtime-replacement.json"
+make_plan "$temporary_directory/runtime-unexpected-managed.json" '[{"address":"aws_s3_bucket.unexpected","change":{"actions":["create"]}}]'
+expect_failure "unexpected managed resource during restore" production_require_plan_mode converge-restore-runtime \
+  "$temporary_directory/runtime-unexpected-managed.json"
 
 runtime_addresses=(
   'aws_instance.application[0]'
@@ -153,6 +163,23 @@ make_plan "$temporary_directory/runtime-create-exact.json" "$runtime_create_chan
 make_plan "$temporary_directory/runtime-delete-exact.json" "$runtime_delete_changes"
 production_require_plan_mode restore-runtime "$temporary_directory/runtime-create-exact.json"
 production_require_plan_mode delete-runtime "$temporary_directory/runtime-delete-exact.json"
+runtime_create_with_data_reads="$(jq --compact-output '
+  . + [
+    {
+      mode: "data",
+      address: "data.aws_iam_policy_document.github_production_deploy[0]",
+      change: {actions: ["read"]}
+    },
+    {
+      mode: "data",
+      address: "data.aws_ecr_repository.application[0]",
+      change: {actions: ["read"]}
+    }
+  ]
+' <<< "$runtime_create_changes")"
+make_plan "$temporary_directory/runtime-create-with-data-reads.json" "$runtime_create_with_data_reads"
+production_require_plan_mode converge-restore-runtime \
+  "$temporary_directory/runtime-create-with-data-reads.json"
 
 make_plan "$temporary_directory/unexpected.json" '[{"address":"aws_s3_bucket.host_images","change":{"actions":["delete"]}}]'
 expect_failure "unexpected durable destroy" production_require_plan_mode converge-delete-runtime "$temporary_directory/unexpected.json"

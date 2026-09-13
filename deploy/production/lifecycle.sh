@@ -468,6 +468,7 @@ production_plan_change_lines() {
   local plan_json="$1"
   jq --raw-output '
     .resource_changes[]?
+    | select(.mode == "managed")
     | select(.change.actions != ["no-op"])
     | [.address, (.change.actions | join(","))]
     | @tsv
