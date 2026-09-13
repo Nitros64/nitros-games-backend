@@ -15,6 +15,23 @@ expect_failure() {
   fi
 }
 
+expect_failure_with_message() {
+  local label="$1"
+  local expected_message="$2"
+  local output
+  shift 2
+  if output="$("$@" 2>&1)"; then
+    echo "$label unexpectedly succeeded." >&2
+    exit 1
+  fi
+  grep -Fq "$expected_message" <<< "$output" || {
+    echo "$label did not report the expected diagnostic." >&2
+    echo "Expected: $expected_message" >&2
+    echo "Actual: $output" >&2
+    exit 1
+  }
+}
+
 readonly valid_state='{"schemaVersion":1,"desiredState":"HIBERNATED","lastTransitionRun":null,"updatedAt":"2026-09-13T00:00:00Z"}'
 readonly active_state='{"schemaVersion":1,"desiredState":"ACTIVE","lastTransitionRun":"42","updatedAt":"2026-09-13T01:00:00Z"}'
 readonly valid_release='{"schemaVersion":1,"applicationSha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","imageDigest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","updatedAt":"2026-09-13T00:00:00Z"}'
@@ -66,6 +83,99 @@ expect_failure "stop during incomplete hibernation" production_resolve_stop_acti
 
 temporary_directory="$(mktemp -d)"
 trap 'rm -rf "$temporary_directory"' EXIT
+
+# RDS manual snapshots may omit DBName even though the source instance has one.
+# Snapshot validation therefore relies on the immutable source DB identifier.
+snapshot_status="available"
+snapshot_encrypted="true"
+snapshot_engine="mysql"
+snapshot_engine_version="8.4.10"
+snapshot_source="$PRODUCTION_DB_IDENTIFIER"
+snapshot_master_username="nitros_admin"
+snapshot_storage_type="gp3"
+snapshot_allocated_storage="20"
+snapshot_engine_family="mysql8.4"
+aws() {
+  case "${1:-}:${2:-}" in
+    rds:describe-db-snapshots)
+      jq --compact-output --null-input \
+        --arg status "$snapshot_status" \
+        --argjson encrypted "$snapshot_encrypted" \
+        --arg engine "$snapshot_engine" \
+        --arg version "$snapshot_engine_version" \
+        --arg source "$snapshot_source" \
+        --arg master "$snapshot_master_username" \
+        --arg storage "$snapshot_storage_type" \
+        --argjson allocated "$snapshot_allocated_storage" '{
+        Status: $status,
+        Encrypted: $encrypted,
+        Engine: $engine,
+        EngineVersion: $version,
+        DBName: null,
+        DBInstanceIdentifier: $source,
+        MasterUsername: $master,
+        StorageType: $storage,
+        AllocatedStorage: $allocated
+      }'
+      ;;
+    rds:describe-db-engine-versions)
+      printf '%s\n' "$snapshot_engine_family"
+      ;;
+    *)
+      echo "Unexpected AWS call in snapshot validation test: $*" >&2
+      return 1
+      ;;
+  esac
+}
+[[ "$(production_validate_snapshot "$TEST_RESTORE_SNAPSHOT")" == "8.4.10" ]]
+
+snapshot_status="creating"
+expect_failure_with_message "unavailable snapshot" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT is not available: creating." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_status="available"
+
+snapshot_encrypted="false"
+expect_failure_with_message "unencrypted snapshot" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT is not encrypted." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_encrypted="true"
+
+snapshot_engine_version="8.0.43"
+expect_failure_with_message "unsupported snapshot engine version" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT has unsupported engine/version: mysql 8.0.43." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_engine_version="8.4.10"
+
+snapshot_source="unexpected-database"
+expect_failure_with_message "snapshot from an unexpected database" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT belongs to unexpected DB instance: unexpected-database." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_source="$PRODUCTION_DB_IDENTIFIER"
+
+snapshot_master_username="unexpected_admin"
+expect_failure_with_message "unexpected snapshot master username" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT has unexpected master username: unexpected_admin." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_master_username="nitros_admin"
+
+snapshot_storage_type="gp2"
+expect_failure_with_message "unexpected snapshot storage type" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT has unexpected storage type: gp2." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_storage_type="gp3"
+
+snapshot_allocated_storage="101"
+expect_failure_with_message "oversized snapshot" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT has invalid allocated storage: 101 GiB." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+snapshot_allocated_storage="20"
+
+snapshot_engine_family="mysql8.0"
+expect_failure_with_message "incompatible snapshot engine family" \
+  "Snapshot $TEST_RESTORE_SNAPSHOT is not compatible with mysql8.4." \
+  production_validate_snapshot "$TEST_RESTORE_SNAPSHOT"
+unset -f aws
 
 make_plan() {
   local destination="$1"

@@ -437,26 +437,60 @@ production_require_ecr_image() {
 
 production_validate_snapshot() {
   local snapshot_identifier="$1"
-  local snapshot engine version family
+  local snapshot status encrypted engine version source master_username storage_type allocated_storage family
   production_require_snapshot_identifier "$snapshot_identifier"
   snapshot="$(aws rds describe-db-snapshots \
     --db-snapshot-identifier "$snapshot_identifier" \
     --query 'DBSnapshots[0]' \
-    --output json)"
+    --output json)" || {
+    echo "Unable to inspect snapshot $snapshot_identifier." >&2
+    return 1
+  }
+  status="$(jq --raw-output '.Status' <<< "$snapshot")"
+  encrypted="$(jq --raw-output '.Encrypted' <<< "$snapshot")"
   engine="$(jq --raw-output '.Engine' <<< "$snapshot")"
   version="$(jq --raw-output '.EngineVersion' <<< "$snapshot")"
-  [[ "$(jq --raw-output '.Status' <<< "$snapshot")" == "available" ]]
-  [[ "$(jq --raw-output '.Encrypted' <<< "$snapshot")" == "true" ]]
-  [[ "$engine" == "mysql" && "$version" =~ ^8\.4\.[0-9]+$ ]]
-  [[ "$(jq --raw-output '.DBName' <<< "$snapshot")" == "nitrosgames" ]]
-  [[ "$(jq --raw-output '.MasterUsername' <<< "$snapshot")" == "nitros_admin" ]]
-  [[ "$(jq --raw-output '.StorageType' <<< "$snapshot")" == "gp3" ]]
-  [[ "$(jq --raw-output '.AllocatedStorage' <<< "$snapshot")" -le 100 ]]
+  source="$(jq --raw-output '.DBInstanceIdentifier' <<< "$snapshot")"
+  master_username="$(jq --raw-output '.MasterUsername' <<< "$snapshot")"
+  storage_type="$(jq --raw-output '.StorageType' <<< "$snapshot")"
+  allocated_storage="$(jq --raw-output '.AllocatedStorage' <<< "$snapshot")"
+
+  [[ "$status" == "available" ]] || {
+    echo "Snapshot $snapshot_identifier is not available: $status." >&2
+    return 1
+  }
+  [[ "$encrypted" == "true" ]] || {
+    echo "Snapshot $snapshot_identifier is not encrypted." >&2
+    return 1
+  }
+  [[ "$engine" == "mysql" && "$version" =~ ^8\.4\.[0-9]+$ ]] || {
+    echo "Snapshot $snapshot_identifier has unsupported engine/version: $engine $version." >&2
+    return 1
+  }
+  [[ "$source" == "$PRODUCTION_DB_IDENTIFIER" ]] || {
+    echo "Snapshot $snapshot_identifier belongs to unexpected DB instance: $source." >&2
+    return 1
+  }
+  [[ "$master_username" == "nitros_admin" ]] || {
+    echo "Snapshot $snapshot_identifier has unexpected master username: $master_username." >&2
+    return 1
+  }
+  [[ "$storage_type" == "gp3" ]] || {
+    echo "Snapshot $snapshot_identifier has unexpected storage type: $storage_type." >&2
+    return 1
+  }
+  [[ "$allocated_storage" =~ ^[0-9]+$ && "$allocated_storage" -le 100 ]] || {
+    echo "Snapshot $snapshot_identifier has invalid allocated storage: $allocated_storage GiB." >&2
+    return 1
+  }
   family="$(aws rds describe-db-engine-versions \
     --engine "$engine" \
     --engine-version "$version" \
     --query 'DBEngineVersions[0].DBParameterGroupFamily' \
-    --output text)"
+    --output text)" || {
+    echo "Unable to resolve the engine family for snapshot $snapshot_identifier." >&2
+    return 1
+  }
   [[ "$family" == "mysql8.4" ]] || {
     echo "Snapshot $snapshot_identifier is not compatible with mysql8.4." >&2
     return 1
