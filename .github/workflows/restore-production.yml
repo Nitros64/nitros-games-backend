@@ -237,7 +237,7 @@ jobs:
               OAUTH2_ISSUER_URI: $issuer, OAUTH2_JWK_SET_URI: $jwks,
               OAUTH2_RESOURCE_ID: $resource, OAUTH2_ACCESS_SCOPE: $access,
               OAUTH2_ADMIN_SCOPE: $admin, OAUTH2_ALLOWED_CLIENT_IDS: $client}')"
-          deploy/production/configure-runtime-via-ssm.sh "$INSTANCE_ID" "$AWS_REGION" "$configuration"
+          bash deploy/production/configure-runtime-via-ssm.sh "$INSTANCE_ID" "$AWS_REGION" "$configuration"
 
       # El verificador consulta Flyway antes y después. La imagen seleccionada
       # aplica cualquier migración pendiente y Hibernate validate debe arrancar.
@@ -248,7 +248,7 @@ jobs:
           APP_IMAGE: ${{ steps.inputs.outputs.image }}
         run: |
           set -euo pipefail
-          deploy/production/deploy-via-ssm.sh \
+          bash deploy/production/deploy-via-ssm.sh \
             "$INSTANCE_ID" "$APP_IMAGE" "$AWS_REGION" verify-restored-db
 
       # Comprueba el camino público completo después de las migraciones.

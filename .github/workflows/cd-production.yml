@@ -156,7 +156,7 @@ jobs:
           APP_IMAGE: ${{ steps.release.outputs.image }}
         run: |
           set -euo pipefail
-          deploy/production/deploy-via-ssm.sh "$INSTANCE_ID" "$APP_IMAGE" "$AWS_REGION"
+          bash deploy/production/deploy-via-ssm.sh "$INSTANCE_ID" "$APP_IMAGE" "$AWS_REGION"
 
       # Demuestra desde Internet ALB/TLS/readiness y un GET público sin ADMIN.
       - name: Verify public readiness and API smoke test
