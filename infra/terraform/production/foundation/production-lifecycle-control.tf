@@ -335,6 +335,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
       "ec2:DescribeAvailabilityZones",
       "ec2:DescribeImages",
       "ec2:DescribeInstanceAttribute",
+      "ec2:DescribeInstanceCreditSpecifications",
       "ec2:DescribeInstanceStatus",
       "ec2:DescribeInstanceTypes",
       "ec2:DescribeInstances",
