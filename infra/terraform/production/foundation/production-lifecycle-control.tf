@@ -135,8 +135,10 @@ data "aws_iam_policy_document" "github_production_lifecycle_state" {
     resources = [
       "${local.terraform_state_bucket_arn}/production/foundation/terraform.tfstate",
       "${local.terraform_state_bucket_arn}/production/data/terraform.tfstate",
+      "${local.terraform_state_bucket_arn}/production/data/terraform.tfstate.tflock",
       "${local.terraform_state_bucket_arn}/production/identity/terraform.tfstate",
-      "${local.terraform_state_bucket_arn}/production/runtime/terraform.tfstate"
+      "${local.terraform_state_bucket_arn}/production/runtime/terraform.tfstate",
+      "${local.terraform_state_bucket_arn}/production/runtime/terraform.tfstate.tflock"
     ]
   }
 
@@ -218,6 +220,15 @@ data "aws_iam_policy_document" "github_production_lifecycle_data" {
   }
 
   statement {
+    sid     = "InspectProductionHibernationSnapshotAttributes"
+    effect  = "Allow"
+    actions = ["rds:DescribeDBSnapshotAttributes"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:rds:${var.aws_region}:${data.aws_caller_identity.current.account_id}:snapshot:${var.project_name}-${var.environment}-hibernation-*"
+    ]
+  }
+
+  statement {
     sid    = "OperateProductionDatabase"
     effect = "Allow"
     actions = [
@@ -270,6 +281,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_data" {
     effect = "Allow"
     actions = [
       "secretsmanager:DescribeSecret",
+      "secretsmanager:GetResourcePolicy",
       "secretsmanager:ListSecretVersionIds"
     ]
     resources = [local.application_secret_arn_pattern]

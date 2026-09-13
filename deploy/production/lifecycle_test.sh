@@ -215,6 +215,10 @@ grep -q 'aws:ResourceTag/Component' "$foundation_control"
 grep -q 'elasticloadbalancing:CreateAction' "$foundation_control"
 grep -q 'acm:DomainNames' "$foundation_control"
 grep -Fq '"_*.api.${var.domain_name}"' "$foundation_control"
+grep -q 'secretsmanager:GetResourcePolicy' "$foundation_control"
+grep -q 'rds:DescribeDBSnapshotAttributes' "$foundation_control"
+[[ "$(grep -Fc '/production/data/terraform.tfstate.tflock' "$foundation_control")" -eq 3 ]]
+[[ "$(grep -Fc '/production/runtime/terraform.tfstate.tflock' "$foundation_control")" -eq 3 ]]
 if grep -Fq '"_*.${var.domain_name}"' "$foundation_control"; then
   echo "Route53 lifecycle scope still permits validation records outside the API namespace." >&2
   exit 1
