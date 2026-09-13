@@ -39,7 +39,13 @@ expect_failure "failed SSM command" production_cd_require_ssm_success "Failed"
 expect_failure "rolled-back deployment" production_cd_require_deployment_success "rolled_back"
 expect_failure "failed public readiness" production_cd_require_http_200 "readiness" "503"
 
-grep -q 'PRODUCTION_INSTANCE_ID' "$workflow"
+if grep -q 'PRODUCTION_INSTANCE_ID' "$workflow"; then
+  echo "Production CD must discover EC2 dynamically instead of trusting a mutable instance ID." >&2
+  exit 1
+fi
+grep -q 'production_require_single_instance' "$workflow"
+grep -q 'production_require_desired_state ACTIVE' "$workflow"
+grep -q 'production_write_release_metadata' "$workflow"
 if grep -q 'STAGING_INSTANCE_ID\|i-0b74bc66161f2ac55' "$workflow"; then
   echo "The production workflow references a staging deployment target." >&2
   exit 1
@@ -50,15 +56,14 @@ for required_guard in \
   production_cd_require_full_sha \
   production_cd_require_main_membership \
   production_cd_require_successful_ci \
-  production_cd_require_ecr_image \
-  production_cd_require_ssm_success \
-  production_cd_require_deployment_success \
   production_cd_require_http_200; do
   grep -q "$required_guard" "$workflow" || {
     echo "The production workflow does not invoke $required_guard." >&2
     exit 1
   }
 done
+
+grep -q 'deploy/production/deploy-via-ssm.sh' "$workflow"
 
 if grep -q 'docker/build-push-action\|ecr get-login-password\|docker push' "$workflow"; then
   echo "Production CD must deploy an existing image rather than build or publish one." >&2

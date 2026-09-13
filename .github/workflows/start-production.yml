@@ -1,0 +1,114 @@
+name: Start Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  start:
+    name: Start stopped production compute
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: production
+      url: https://api.nitrosgames64.com
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
+    steps:
+      # Los guards se leen siempre desde main; este workflow no acepta un SHA.
+      - name: Check out lifecycle safeguards
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Comprueba scripts y configuración manual antes de solicitar AWS.
+      - name: Validate inputs
+        shell: bash
+        env:
+          AWS_PRODUCTION_LIFECYCLE_ROLE_ARN: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_REGION"
+          test -n "$AWS_PRODUCTION_LIFECYCLE_ROLE_ARN"
+          bash -n deploy/production/lifecycle.sh
+
+      # El rol permanente vive en foundation y sobrevive a la hibernación.
+      - name: Configure AWS lifecycle credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-production-start-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # STOPPED es solo estado eléctrico: desiredState continúa ACTIVE. Si ya
+      # está ACTIVE no muta AWS y pasa directamente a comprobar readiness.
+      - name: Resolve idempotent start
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          lifecycle="$(production_read_lifecycle_state)"
+          actual="$(production_detect_state)"
+          action="$(production_resolve_start_action "$lifecycle" "$actual")" || exit 70
+          case "$action" in
+            START) echo "needs_start=true" >> "$GITHUB_OUTPUT" ;;
+            VERIFY) echo "needs_start=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "instance_id=$(production_require_single_instance)" >> "$GITHUB_OUTPUT"
+
+      # RDS se inicia primero para que el contenedor reiniciado encuentre la BD.
+      - name: Start database
+        if: steps.target.outputs.needs_start == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          db_status="$(production_database_status)"
+          if [[ "$db_status" == "stopped" ]]; then
+            aws rds start-db-instance --db-instance-identifier "$PRODUCTION_DB_IDENTIFIER" >/dev/null
+          elif [[ "$db_status" != "available" ]]; then
+            echo "Unexpected RDS state: $db_status" >&2
+            exit 70
+          fi
+          production_wait_for_database_status available
+
+      # Arranca la EC2 existente; no ejecuta Terraform ni recrea infraestructura.
+      - name: Start application instance
+        if: steps.target.outputs.needs_start == 'true'
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          aws ec2 start-instances --instance-ids "$INSTANCE_ID" >/dev/null
+          production_wait_for_instance_state "$INSTANCE_ID" running
+          production_wait_for_ssm_online "$INSTANCE_ID"
+
+      # El contenedor usa restart:unless-stopped; readiness confirma aplicación,
+      # RDS, ALB y TLS sin desplegar otra imagen.
+      - name: Verify public readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
+          status="$(curl --silent --show-error --retry 30 --retry-all-errors \
+            --retry-delay 10 --max-time 15 --output "$body" \
+            --write-out '%{http_code}' \
+            https://api.nitrosgames64.com/actuator/health/readiness || true)"
+          [[ "$status" == "200" ]]
+          jq --exit-status '.status == "UP"' "$body" >/dev/null
+          echo "PRODUCTION_STATE=ACTIVE" >> "$GITHUB_STEP_SUMMARY"

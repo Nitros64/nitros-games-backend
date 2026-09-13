@@ -57,3 +57,33 @@ output "database_security_group_id" {
   description = "Security group reserved for production RDS."
   value       = aws_security_group.database.id
 }
+
+output "production_lifecycle_state_parameter_name" {
+  description = "Authoritative non-secret ACTIVE or HIBERNATED production desired-state parameter."
+  value       = aws_ssm_parameter.production_lifecycle_state.name
+}
+
+output "production_lifecycle_state_parameter_arn" {
+  description = "ARN mutable only by the permanent production lifecycle role."
+  value       = aws_ssm_parameter.production_lifecycle_state.arn
+}
+
+output "production_release_parameter_name" {
+  description = "Non-secret last-successful-release metadata parameter."
+  value       = aws_ssm_parameter.production_release_metadata.name
+}
+
+output "production_release_parameter_arn" {
+  description = "ARN writable by the narrowly scoped production deployment role."
+  value       = aws_ssm_parameter.production_release_metadata.arn
+}
+
+output "github_actions_production_lifecycle_role_arn" {
+  description = "Persistent OIDC role used by protected production lifecycle workflows."
+  value       = aws_iam_role.github_production_lifecycle.arn
+}
+
+output "production_lifecycle_trusted_subject" {
+  description = "Exact GitHub Environment subject trusted by the lifecycle role."
+  value       = local.github_environment_subject
+}

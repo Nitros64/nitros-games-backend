@@ -1,0 +1,300 @@
+name: Restore Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character main SHA already validated and published to ECR
+        required: true
+        type: string
+      snapshot_identifier:
+        description: Available encrypted production hibernation snapshot
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate restore release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    env:
+      REQUESTED_SHA: ${{ inputs.commit_sha }}
+    outputs:
+      commit_sha: ${{ steps.release.outputs.sha }}
+
+    steps:
+      # La restauración usa código y Terraform del mismo SHA que se desplegará.
+      - name: Check out workflow safeguards
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # La API de GitHub prueba pertenencia a main y un CI de push exitoso.
+      - name: Verify commit belongs to main and passed CI
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source deploy/production/release_guard.sh
+          production_cd_require_main_ref "$GITHUB_REF"
+          production_cd_require_full_sha "$REQUESTED_SHA"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${REQUESTED_SHA}...main" --jq '.status')"
+          production_cd_require_main_membership "$comparison"
+          ci_conclusion="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+            --commit "$REQUESTED_SHA" --event push --limit 1 \
+            --json conclusion --jq '.[0].conclusion // ""')"
+          production_cd_require_successful_ci "$ci_conclusion"
+          echo "sha=$REQUESTED_SHA" >> "$GITHUB_OUTPUT"
+
+  restore:
+    name: Restore database, runtime and immutable application
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment:
+      name: production
+      url: https://api.nitrosgames64.com
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+      IMAGE_SHA: ${{ needs.preflight.outputs.commit_sha }}
+      RESTORE_SNAPSHOT: ${{ inputs.snapshot_identifier }}
+
+    steps:
+      # Fija el checkout a la revisión previamente validada por CI.
+      - name: Check out selected release
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.IMAGE_SHA }}
+          persist-credentials: false
+
+      # Rechaza variables ausentes y scripts con sintaxis inválida antes de AWS.
+      - name: Validate restore inputs
+        shell: bash
+        env:
+          AWS_PRODUCTION_LIFECYCLE_ROLE_ARN: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_REGION"
+          test -n "$ECR_REPOSITORY"
+          test -n "$AWS_PRODUCTION_LIFECYCLE_ROLE_ARN"
+          source deploy/production/lifecycle.sh
+          production_require_full_sha "$IMAGE_SHA"
+          bash -n deploy/production/configure-runtime-via-ssm.sh
+          bash -n deploy/production/deploy-via-ssm.sh
+          bash -n deploy/production/verify-restored-db.sh
+
+      # El rol de lifecycle existe en foundation y no depende del runtime eliminado.
+      - name: Configure AWS lifecycle credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-production-restore-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Valida snapshot disponible, cifrado y compatible con la familia MySQL
+      # 8.4; ninguna versión patch concreta queda fijada como contrato.
+      - name: Verify hibernated state, snapshot and immutable image
+        id: inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          lifecycle="$(production_read_lifecycle_state)"
+          desired="$(jq --raw-output '.desiredState' <<< "$lifecycle")"
+          transition_marker="$(production_restore_transition_marker "$GITHUB_RUN_ID" "$RESTORE_SNAPSHOT" "$IMAGE_SHA")"
+          if [[ "$desired" == "HIBERNATED" ]]; then
+            [[ "$(production_detect_state)" == "HIBERNATED" ]] || {
+              echo "Restore requires a fully HIBERNATED starting state." >&2
+              exit 70
+            }
+          else
+            production_require_resumable_restore "$lifecycle" "$RESTORE_SNAPSHOT" "$IMAGE_SHA" >/dev/null
+            actual_state="$(production_detect_state)"
+            [[ "$actual_state" == "ACTIVE" || "$actual_state" == "TRANSITIONING" || "$actual_state" == "INCONSISTENT" ]] || {
+              echo "Restore cannot resume from actual state $actual_state; use Start for STOPPED." >&2
+              exit 70
+            }
+          fi
+          engine_version="$(production_validate_snapshot "$RESTORE_SNAPSHOT")"
+          digest="$(production_require_ecr_image "$ECR_REPOSITORY" "$IMAGE_SHA")"
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          echo "initial_state=$desired" >> "$GITHUB_OUTPUT"
+          echo "transition_marker=$transition_marker" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "image=${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Observed snapshot engine: mysql $engine_version" >> "$GITHUB_STEP_SUMMARY"
+
+      # ACTIVE se persiste antes de planear: data/runtime derivan su count solo
+      # de este parámetro. Un fallo posterior deja una convergencia reanudable.
+      - name: Transition desired state to ACTIVE
+        if: steps.inputs.outputs.initial_state == 'HIBERNATED'
+        shell: bash
+        env:
+          TRANSITION_MARKER: ${{ steps.inputs.outputs.transition_marker }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          production_transition_desired_state HIBERNATED ACTIVE "$TRANSITION_MARKER"
+
+      # Instala la misma versión de Terraform utilizada por CI.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.15.6"
+
+      # Solo abre los roots desechables; no modifica foundation ni identity.
+      - name: Initialize disposable Terraform roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/production/data init -input=false
+          terraform -chdir=infra/terraform/production/runtime init -input=false
+
+      # El whitelist acepta únicamente la creación/no-op de RDS. S3, secreto,
+      # subnet group, parameter group y snapshot retenido no pueden cambiar.
+      - name: Restore RDS through inspected Terraform plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/data plan -input=false -lock-timeout 5m \
+            -var "restore_snapshot_identifier=$RESTORE_SNAPSHOT" \
+            -out restore-data.tfplan
+          terraform -chdir=infra/terraform/production/data show -json restore-data.tfplan > restore-data.json
+          production_require_plan_mode converge-restore-data restore-data.json
+          terraform -chdir=infra/terraform/production/data apply -input=false restore-data.tfplan
+          production_wait_for_database_status available
+
+      # El whitelist de runtime acepta solo el subconjunto pendiente de sus 23
+      # direcciones conocidas; sirve también para reanudar un apply parcial.
+      - name: Restore runtime through inspected Terraform plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/runtime plan -input=false -lock-timeout 5m \
+            -out restore-runtime.tfplan
+          terraform -chdir=infra/terraform/production/runtime show -json restore-runtime.tfplan > restore-runtime.json
+          production_require_plan_mode converge-restore-runtime restore-runtime.json
+          terraform -chdir=infra/terraform/production/runtime apply -input=false restore-runtime.tfplan
+
+      # La EC2 se descubre por tags y se espera hasta completar cloud-init y SSM.
+      - name: Discover and wait for restored application host
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          instance_id="$(production_require_single_instance)"
+          production_wait_for_instance_state "$instance_id" running
+          production_wait_for_ssm_online "$instance_id"
+          production_wait_for_host_bootstrap "$instance_id"
+          echo "instance_id=$instance_id" >> "$GITHUB_OUTPUT"
+
+      # Construye runtime.conf únicamente con outputs no secretos. La contraseña
+      # sigue en Secrets Manager y será leída en memoria por la EC2.
+      - name: Install non-secret runtime configuration
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          data_output="$(terraform -chdir=infra/terraform/production/data output -json)"
+          identity_output="$(terraform -chdir=infra/terraform/production/identity init -input=false >/dev/null && terraform -chdir=infra/terraform/production/identity output -json)"
+          db_endpoint="$(jq --raw-output '.db_endpoint.value' <<< "$data_output")"
+          configuration="$(jq --compact-output --null-input \
+            --arg secret "$(jq --raw-output '.application_db_secret_arn.value' <<< "$data_output")" \
+            --arg db_url "jdbc:mysql://${db_endpoint}/nitrosgames?sslMode=VERIFY_IDENTITY" \
+            --arg bucket "$(jq --raw-output '.host_images_bucket_name.value' <<< "$data_output")" \
+            --arg issuer "$(jq --raw-output '.issuer_uri.value' <<< "$identity_output")" \
+            --arg jwks "$(jq --raw-output '.jwk_set_uri.value' <<< "$identity_output")" \
+            --arg resource "$(jq --raw-output '.api_resource_id.value' <<< "$identity_output")" \
+            --arg access "$(jq --raw-output '.api_access_scope.value' <<< "$identity_output")" \
+            --arg admin "$(jq --raw-output '.api_admin_scope.value' <<< "$identity_output")" \
+            --arg client "$(jq --raw-output '.angular_client_id.value' <<< "$identity_output")" \
+            '{APPLICATION_DB_SECRET_ARN: $secret, DB_URL: $db_url,
+              APP_STORAGE_HOST_IMAGES_S3_BUCKET: $bucket,
+              APP_SECURITY_ALLOWED_ORIGINS: "https://nitrosgames64.com",
+              OAUTH2_ISSUER_URI: $issuer, OAUTH2_JWK_SET_URI: $jwks,
+              OAUTH2_RESOURCE_ID: $resource, OAUTH2_ACCESS_SCOPE: $access,
+              OAUTH2_ADMIN_SCOPE: $admin, OAUTH2_ALLOWED_CLIENT_IDS: $client}')"
+          deploy/production/configure-runtime-via-ssm.sh "$INSTANCE_ID" "$AWS_REGION" "$configuration"
+
+      # El verificador consulta Flyway antes y después. La imagen seleccionada
+      # aplica cualquier migración pendiente y Hibernate validate debe arrancar.
+      - name: Deploy immutable image and validate restored schema
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+          APP_IMAGE: ${{ steps.inputs.outputs.image }}
+        run: |
+          set -euo pipefail
+          deploy/production/deploy-via-ssm.sh \
+            "$INSTANCE_ID" "$APP_IMAGE" "$AWS_REGION" verify-restored-db
+
+      # Comprueba el camino público completo después de las migraciones.
+      - name: Verify public readiness and API
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
+          status="$(curl --silent --show-error --retry 20 --retry-all-errors \
+            --retry-delay 5 --max-time 15 --output "$body" \
+            --write-out '%{http_code}' \
+            https://api.nitrosgames64.com/actuator/health/readiness || true)"
+          [[ "$status" == "200" ]]
+          jq --exit-status '.status == "UP"' "$body" >/dev/null
+          api_status="$(curl --silent --show-error --max-time 15 \
+            --output /dev/null --write-out '%{http_code}' \
+            https://api.nitrosgames64.com/api/v1/game-genres || true)"
+          [[ "$api_status" == "200" ]]
+
+      # Gate obligatorio: al omitir restore_snapshot_identifier, ignore_changes
+      # debe normalizar la procedencia y producir cero cambios/reemplazos en RDS.
+      - name: Prove normalized ACTIVE Terraform state
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/data plan -input=false -lock-timeout 5m \
+            -out normalized-data.tfplan
+          terraform -chdir=infra/terraform/production/data show -json normalized-data.tfplan > normalized-data.json
+          production_require_plan_mode normalized-data normalized-data.json
+          terraform -chdir=infra/terraform/production/runtime plan -input=false -lock-timeout 5m \
+            -out runtime-stable.tfplan
+          terraform -chdir=infra/terraform/production/runtime show -json runtime-stable.tfplan > runtime-stable.json
+          production_require_plan_mode stable runtime-stable.json
+          echo "RDS_REPLACEMENT=no" >> "$GITHUB_STEP_SUMMARY"
+          echo "RDS_CHANGE=no" >> "$GITHUB_STEP_SUMMARY"
+          echo "PLAN_DESTROY=0" >> "$GITHUB_STEP_SUMMARY"
+
+      # Registra la imagen realmente restaurada solo al final de todos los gates.
+      - name: Record restored release metadata
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.inputs.outputs.digest }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          production_write_release_metadata "$IMAGE_SHA" "$IMAGE_DIGEST"
+          [[ "$(production_detect_state)" == "ACTIVE" ]]
+          echo "PRODUCTION_STATE=ACTIVE" >> "$GITHUB_STEP_SUMMARY"

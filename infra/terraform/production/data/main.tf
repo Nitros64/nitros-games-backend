@@ -21,6 +21,51 @@ data "terraform_remote_state" "foundation" {
   }
 }
 
+data "aws_ssm_parameter" "production_lifecycle_state" {
+  name = data.terraform_remote_state.foundation.outputs.production_lifecycle_state_parameter_name
+}
+
+data "aws_db_instances" "production" {
+  filter {
+    name   = "db-instance-id"
+    values = [local.db_instance_identifier]
+  }
+}
+
+locals {
+  lifecycle_state = try(
+    jsondecode(nonsensitive(data.aws_ssm_parameter.production_lifecycle_state.value)),
+    {}
+  )
+  lifecycle_schema_version = try(local.lifecycle_state.schemaVersion, null)
+  production_desired_state = try(local.lifecycle_state.desiredState, null)
+  database_enabled         = local.production_desired_state == "ACTIVE"
+  database_exists          = contains(data.aws_db_instances.production.instance_identifiers, local.db_instance_identifier)
+}
+
+check "production_lifecycle_state" {
+  assert {
+    condition     = local.lifecycle_schema_version == 1
+    error_message = "The production lifecycle SSM parameter must use schemaVersion 1."
+  }
+
+  assert {
+    condition     = contains(["ACTIVE", "HIBERNATED"], local.production_desired_state)
+    error_message = "The production lifecycle SSM desiredState must be ACTIVE or HIBERNATED."
+  }
+}
+
+check "database_hibernation_authorization" {
+  assert {
+    condition = (
+      local.database_enabled
+      || var.database_hibernation_authorized
+      || !local.database_exists
+    )
+    error_message = "RDS still exists while desiredState is HIBERNATED. Use the reviewed hibernation workflow; a normal plan cannot delete it."
+  }
+}
+
 check "foundation_contract" {
   assert {
     condition     = data.terraform_remote_state.foundation.outputs.aws_region == var.aws_region
@@ -76,7 +121,7 @@ resource "aws_db_parameter_group" "mysql84" {
 }
 
 resource "aws_db_instance" "mysql" {
-  count = var.database_enabled ? 1 : 0
+  count = local.database_enabled ? 1 : 0
 
   identifier = local.db_instance_identifier
 
@@ -85,11 +130,11 @@ resource "aws_db_instance" "mysql" {
   instance_class = "db.t4g.micro"
 
   snapshot_identifier = var.restore_snapshot_identifier
-  db_name             = var.restore_snapshot_identifier == null ? "nitrosgames" : null
-  username            = var.restore_snapshot_identifier == null ? "nitros_admin" : null
+  db_name             = "nitrosgames"
+  username            = "nitros_admin"
   port                = 3306
 
-  manage_master_user_password = var.restore_snapshot_identifier == null ? true : null
+  manage_master_user_password = true
 
   allocated_storage     = 20
   max_allocated_storage = 100
@@ -102,7 +147,7 @@ resource "aws_db_instance" "mysql" {
   multi_az               = false
 
   parameter_group_name        = aws_db_parameter_group.mysql84.name
-  auto_minor_version_upgrade  = false
+  auto_minor_version_upgrade  = true
   allow_major_version_upgrade = false
   apply_immediately           = false
 
@@ -120,7 +165,10 @@ resource "aws_db_instance" "mysql" {
   performance_insights_enabled = false
 
   lifecycle {
-    prevent_destroy = true
+    # snapshot_identifier is a create-only provenance input and ForceNew in
+    # the AWS provider. A restored instance must normalize to the ordinary
+    # ACTIVE configuration without Terraform proposing replacement.
+    ignore_changes = [snapshot_identifier]
   }
 
   tags = {

@@ -7,7 +7,7 @@ second one. The zone is protected with `prevent_destroy`, retains its registrar
 comment and intentionally remains untagged to match the existing AWS object.
 Domain registration itself is not managed by Terraform.
 
-This Terraform root creates only the long-lived NitrosGames production network:
+This Terraform root owns the long-lived NitrosGames production control plane:
 
 - one VPC that does not overlap staging;
 - two public subnets in distinct Availability Zones;
@@ -16,9 +16,20 @@ This Terraform root creates only the long-lived NitrosGames production network:
 - isolated private route tables with no internet or NAT route;
 - an application security group with no ingress;
 - a database security group that accepts MySQL only from the application group.
+- separate non-secret SSM parameters for lifecycle state and release metadata;
+- the permanent GitHub OIDC lifecycle role used to restore an otherwise
+  hibernated environment, with four scoped customer-managed policies and no
+  lifecycle permissions consuming the role's aggregate inline-policy quota.
 
-It does not create RDS, a DB subnet group, S3, Secrets Manager, EC2, ALB, NAT,
-VPC endpoints, IAM deployment roles or application resources.
+It does not create RDS, a DB subnet group, application S3 storage, Secrets
+Manager, EC2, ALB, NAT, VPC endpoints or application resources. Keeping the
+lifecycle role here is intentional: this remote state survives runtime
+hibernation and does not depend on workstation-local bootstrap state.
+
+The lifecycle role trusts exactly
+`repo:Nitros64/nitros-games-backend:environment:production` with audience
+`sts.amazonaws.com`. See [`../PRODUCTION_LIFECYCLE.md`](../PRODUCTION_LIFECYCLE.md)
+for its permissions and operational workflows.
 
 ## Network
 

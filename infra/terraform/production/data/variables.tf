@@ -32,20 +32,14 @@ variable "environment" {
 }
 
 variable "mysql_engine_version" {
-  description = "Pinned RDS for MySQL 8.4 patch version verified in eu-west-1."
+  description = "Supported RDS for MySQL minor family. AWS may advance the compatible 8.4 patch version."
   type        = string
-  default     = "8.4.10"
+  default     = "8.4"
 
   validation {
-    condition     = can(regex("^8\\.4\\.[0-9]+$", var.mysql_engine_version))
-    error_message = "mysql_engine_version must remain on the explicitly reviewed MySQL 8.4 line."
+    condition     = var.mysql_engine_version == "8.4"
+    error_message = "mysql_engine_version must remain on the supported MySQL 8.4 family."
   }
-}
-
-variable "database_enabled" {
-  description = "Whether the production RDS compute instance should exist. False is the safe hibernated state while durable data remains managed."
-  type        = bool
-  default     = false
 }
 
 variable "database_hibernation_authorized" {
@@ -105,10 +99,10 @@ variable "final_snapshot_identifier" {
       !var.database_hibernation_authorized
       || (
         var.final_snapshot_identifier != var.hibernation_snapshot_identifier
-        && can(regex("^nitros-games-backend-production-hibernation-final-[0-9]{8}$", var.final_snapshot_identifier))
+        && can(regex("^nitros-games-backend-production-hibernation-final-run-[0-9]+$", var.final_snapshot_identifier))
       )
     )
-    error_message = "An authorized hibernation requires a unique dated final snapshot identifier distinct from the canonical manual snapshot."
+    error_message = "An authorized hibernation requires a final snapshot identifier unique to the GitHub lifecycle run and distinct from the canonical manual snapshot."
   }
 }
 

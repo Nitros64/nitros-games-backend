@@ -1,15 +1,14 @@
 aws_region           = "eu-west-1"
 project_name         = "nitros-games-backend"
 environment          = "production"
-mysql_engine_version = "8.4.10"
+mysql_engine_version = "8.4"
 
-database_enabled                = false
 database_hibernation_authorized = false
 restore_snapshot_identifier     = null
 hibernation_snapshot_identifier = "nitros-games-backend-production-hibernation-20260911"
 
 # Before a future approved deletion, replace this with a unique value such as
-# nitros-games-backend-production-hibernation-final-YYYYMMDD.
+# nitros-games-backend-production-hibernation-final-run-GITHUB_RUN_ID.
 final_snapshot_identifier = "nitros-games-backend-production-mysql-final"
 
 additional_tags = {

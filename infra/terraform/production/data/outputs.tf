@@ -18,6 +18,16 @@ output "db_name" {
   value       = one(aws_db_instance.mysql[*].db_name)
 }
 
+output "db_engine_version_actual" {
+  description = "Actual MySQL 8.4 patch version selected or restored by RDS."
+  value       = try(one(aws_db_instance.mysql[*].engine_version_actual), null)
+}
+
+output "production_desired_state" {
+  description = "Live authoritative production desired state read from SSM."
+  value       = local.production_desired_state
+}
+
 output "master_secret_arn" {
   description = "ARN of the master credential secret generated and managed by RDS."
   value       = try(one(aws_db_instance.mysql[*].master_user_secret[0].secret_arn), null)
