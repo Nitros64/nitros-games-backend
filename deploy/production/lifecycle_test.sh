@@ -180,6 +180,15 @@ grep -q 'production_require_resumable_restore' "$repository_root/.github/workflo
 grep -q 'production_resolve_hibernate_operation_run' "$repository_root/.github/workflows/hibernate-production.yml"
 grep -q "needs_start == 'true'" "$repository_root/.github/workflows/start-production.yml"
 grep -q "needs_stop == 'true'" "$repository_root/.github/workflows/stop-production.yml"
+readonly restore_workflow="$repository_root/.github/workflows/restore-production.yml"
+if grep -Eq 'ref:[[:space:]]*\$\{\{[[:space:]]*env\.IMAGE_SHA[[:space:]]*\}\}' "$restore_workflow"; then
+  echo "Restore must not check out IMAGE_SHA as lifecycle control source." >&2
+  exit 1
+fi
+grep -q 'Check out lifecycle controls' "$restore_workflow"
+grep -Fq 'production_require_ecr_image "$ECR_REPOSITORY" "$IMAGE_SHA"' "$restore_workflow"
+grep -Fq '${ECR_REPOSITORY}:${IMAGE_SHA}' "$restore_workflow"
+grep -Fq 'production_write_release_metadata "$IMAGE_SHA" "$IMAGE_DIGEST"' "$restore_workflow"
 if grep -Eq 'production_transition_desired_state' \
   "$repository_root/.github/workflows/start-production.yml" \
   "$repository_root/.github/workflows/stop-production.yml"; then

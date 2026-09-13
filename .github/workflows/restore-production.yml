@@ -77,11 +77,12 @@ jobs:
       RESTORE_SNAPSHOT: ${{ inputs.snapshot_identifier }}
 
     steps:
-      # Fija el checkout a la revisión previamente validada por CI.
-      - name: Check out selected release
+      # Los controles de ciclo de vida, Terraform y scripts provienen de la revisión
+      # actual del workflow. IMAGE_SHA identifica únicamente la aplicación inmutable
+      # que se valida y despliega; nunca selecciona el código de control operativo.
+      - name: Check out lifecycle controls
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ env.IMAGE_SHA }}
           persist-credentials: false
 
       # Rechaza variables ausentes y scripts con sintaxis inválida antes de AWS.
