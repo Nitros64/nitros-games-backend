@@ -31,23 +31,96 @@ data "terraform_remote_state" "data" {
   }
 }
 
+data "aws_ssm_parameter" "production_lifecycle_state" {
+  name = data.terraform_remote_state.foundation.outputs.production_lifecycle_state_parameter_name
+}
+
+data "aws_resourcegroupstaggingapi_resources" "production_runtime" {
+  resource_type_filters = [
+    "acm:certificate",
+    "ec2:instance",
+    "ec2:security-group",
+    "elasticloadbalancing:loadbalancer",
+    "elasticloadbalancing:targetgroup",
+    "iam:instance-profile",
+    "iam:role"
+  ]
+
+  tag_filter {
+    key    = "Project"
+    values = [var.project_name]
+  }
+
+  tag_filter {
+    key    = "Environment"
+    values = [var.environment]
+  }
+
+  tag_filter {
+    key    = "Component"
+    values = ["production-runtime"]
+  }
+}
+
+data "aws_route53_records" "production_runtime" {
+  zone_id    = data.terraform_remote_state.foundation.outputs.public_hosted_zone_id
+  name_regex = "^(api\\.${replace(var.api_domain_name, "api.", "")}|_.*\\.${replace(var.api_domain_name, "api.", "")})\\.?$"
+}
+
+locals {
+  lifecycle_state = try(
+    jsondecode(nonsensitive(data.aws_ssm_parameter.production_lifecycle_state.value)),
+    {}
+  )
+  lifecycle_schema_version = try(local.lifecycle_state.schemaVersion, null)
+  production_desired_state = try(local.lifecycle_state.desiredState, null)
+  runtime_enabled          = local.production_desired_state == "ACTIVE"
+  discovered_runtime_resources = (
+    length(data.aws_resourcegroupstaggingapi_resources.production_runtime.resource_tag_mapping_list)
+    + length(coalesce(data.aws_route53_records.production_runtime.resource_record_sets, []))
+  )
+}
+
+check "production_lifecycle_state" {
+  assert {
+    condition     = local.lifecycle_schema_version == 1
+    error_message = "The production lifecycle SSM parameter must use schemaVersion 1."
+  }
+
+  assert {
+    condition     = contains(["ACTIVE", "HIBERNATED"], local.production_desired_state)
+    error_message = "The production lifecycle SSM desiredState must be ACTIVE or HIBERNATED."
+  }
+}
+
+check "runtime_hibernation_authorization" {
+  assert {
+    condition = (
+      local.runtime_enabled
+      || var.runtime_hibernation_authorized
+      || local.discovered_runtime_resources == 0
+    )
+    error_message = "Runtime resources still exist while desiredState is HIBERNATED. Use the reviewed hibernation workflow; a normal plan cannot delete them."
+  }
+}
+
 data "aws_partition" "current" {}
 
 data "aws_ecr_repository" "application" {
-  count = var.runtime_enabled ? 1 : 0
+  count = local.runtime_enabled ? 1 : 0
 
   name = var.ecr_repository_name
 }
 
 data "aws_ssm_parameter" "amazon_linux_2023" {
-  count = var.runtime_enabled ? 1 : 0
+  count = local.runtime_enabled ? 1 : 0
 
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 check "remote_state_contract" {
   assert {
-    condition = !var.runtime_enabled || (
+    condition = !local.runtime_enabled || (
       data.terraform_remote_state.foundation.outputs.aws_region == var.aws_region
       && data.terraform_remote_state.data.outputs.db_port == 3306
     )
@@ -55,7 +128,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = !var.runtime_enabled || contains(
+    condition = !local.runtime_enabled || contains(
       keys(data.terraform_remote_state.foundation.outputs.public_subnet_ids),
       var.runtime_subnet_key
     )
@@ -63,7 +136,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = !var.runtime_enabled || (
+    condition = !local.runtime_enabled || (
       length(data.terraform_remote_state.foundation.outputs.public_subnet_ids) == 2
       && data.terraform_remote_state.foundation.outputs.vpc_id != ""
       && data.terraform_remote_state.foundation.outputs.application_security_group_id != ""
@@ -73,7 +146,7 @@ check "remote_state_contract" {
   }
 
   assert {
-    condition = !var.runtime_enabled || (
+    condition = !local.runtime_enabled || (
       data.terraform_remote_state.data.outputs.application_db_secret_arn != ""
       && data.terraform_remote_state.data.outputs.host_images_bucket_arn != ""
       && data.terraform_remote_state.data.outputs.db_endpoint != ""
@@ -84,7 +157,7 @@ check "remote_state_contract" {
 }
 
 resource "aws_instance" "application" {
-  count = var.runtime_enabled ? 1 : 0
+  count = local.runtime_enabled ? 1 : 0
 
   ami                         = data.aws_ssm_parameter.amazon_linux_2023[0].value
   instance_type               = var.instance_type

@@ -1,0 +1,206 @@
+name: Hibernate Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type HIBERNATE_PRODUCTION exactly
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  hibernate:
+    name: Snapshot and remove disposable production compute
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment:
+      name: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
+    steps:
+      # Terraform y los guards provienen del main que disparó la operación.
+      - name: Check out lifecycle implementation
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # La palabra destructiva es obligatoria. Los nombres quedan ligados al
+      # run_id inicial persistido, incluso si otro workflow reanuda la operación.
+      - name: Validate destructive confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          AWS_PRODUCTION_LIFECYCLE_ROLE_ARN: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          production_require_hibernate_confirmation "$CONFIRMATION"
+          test -n "$AWS_REGION"
+          test -n "$AWS_PRODUCTION_LIFECYCLE_ROLE_ARN"
+          bash -n deploy/production/lifecycle.sh
+
+      # El rol permanente está en foundation remoto y sigue existiendo aunque
+      # runtime y RDS hayan sido eliminados.
+      - name: Configure AWS lifecycle credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-production-hibernate-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # Usa la misma versión fijada por CI para leer los estados remotos.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.15.6"
+
+      # Inicializa únicamente data/runtime. Foundation, identity, ECR, dominio,
+      # S3 y el secreto de aplicación son recursos retenidos.
+      - name: Initialize disposable Terraform roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/production/data init -input=false
+          terraform -chdir=infra/terraform/production/runtime init -input=false
+
+      # Hibernar parte de STOPPED. Si un run nuevo reanuda una transición,
+      # reutiliza el run_id original almacenado en SSM y los mismos snapshots.
+      - name: Validate lifecycle phase and create recovery snapshot
+        id: snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          lifecycle="$(production_read_lifecycle_state)"
+          desired="$(jq --raw-output '.desiredState' <<< "$lifecycle")"
+          operation_run="$(production_resolve_hibernate_operation_run "$lifecycle" "$GITHUB_RUN_ID")"
+          HIBERNATION_SNAPSHOT="nitros-games-backend-production-hibernation-run-${operation_run}"
+          FINAL_SNAPSHOT="nitros-games-backend-production-hibernation-final-run-${operation_run}"
+          transition_marker="$(production_hibernate_transition_marker "$operation_run")"
+          echo "HIBERNATION_SNAPSHOT=$HIBERNATION_SNAPSHOT" >> "$GITHUB_ENV"
+          echo "FINAL_SNAPSHOT=$FINAL_SNAPSHOT" >> "$GITHUB_ENV"
+          if [[ "$desired" == "ACTIVE" ]]; then
+            [[ "$(production_detect_state)" == "STOPPED" ]] || {
+              echo "Hibernate requires production to be STOPPED first." >&2
+              exit 70
+            }
+          fi
+
+          release="$(production_read_release_metadata)"
+          application_sha="$(jq --raw-output '.applicationSha' <<< "$release")"
+          image_digest="$(jq --raw-output '.imageDigest' <<< "$release")"
+          application_secret_arn="$(terraform -chdir=infra/terraform/production/data output -raw application_db_secret_arn)"
+          secret_version="$(aws secretsmanager list-secret-version-ids \
+            --secret-id "$application_secret_arn" \
+            --query 'Versions[?contains(VersionStages, `AWSCURRENT`)].VersionId | [0]' \
+            --output text)"
+          [[ -n "$secret_version" && "$secret_version" != "None" ]]
+
+          snapshot_status="$(aws rds describe-db-snapshots \
+            --db-snapshot-identifier "$HIBERNATION_SNAPSHOT" \
+            --query 'DBSnapshots[0].Status' --output text 2>/dev/null || true)"
+          if [[ -z "$snapshot_status" || "$snapshot_status" == "None" ]]; then
+            timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            aws rds create-db-snapshot \
+              --db-instance-identifier "$PRODUCTION_DB_IDENTIFIER" \
+              --db-snapshot-identifier "$HIBERNATION_SNAPSHOT" \
+              --tags \
+                "Key=Project,Value=$PRODUCTION_PROJECT" \
+                "Key=Environment,Value=$PRODUCTION_ENVIRONMENT" \
+                "Key=LifecycleRun,Value=$operation_run" \
+                "Key=LifecycleTimestamp,Value=$timestamp" \
+                "Key=ApplicationSha,Value=$application_sha" \
+                "Key=ImageDigest,Value=$image_digest" \
+                "Key=ApplicationSecretVersion,Value=$secret_version" >/dev/null
+          fi
+          aws rds wait db-snapshot-completed --db-snapshot-identifier "$HIBERNATION_SNAPSHOT"
+          production_validate_snapshot "$HIBERNATION_SNAPSHOT" >/dev/null
+          echo "initial_state=$desired" >> "$GITHUB_OUTPUT"
+          echo "transition_marker=$transition_marker" >> "$GITHUB_OUTPUT"
+          echo "Recovery snapshot: $HIBERNATION_SNAPSHOT" >> "$GITHUB_STEP_SUMMARY"
+
+      # Mientras desiredState aún es ACTIVE, desactiva exclusivamente la
+      # protección AWS de RDS. El plan JSON debe contener como máximo ese update.
+      - name: Disable RDS deletion protection with an inspected plan
+        if: steps.snapshot.outputs.initial_state == 'ACTIVE'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/data plan -input=false -lock-timeout 5m \
+            -var database_hibernation_authorized=true \
+            -var "final_snapshot_identifier=$FINAL_SNAPSHOT" \
+            -out hibernate-protect.tfplan
+          terraform -chdir=infra/terraform/production/data show -json hibernate-protect.tfplan > protect.json
+          production_require_plan_mode converge-protect-data protect.json "$FINAL_SNAPSHOT"
+          terraform -chdir=infra/terraform/production/data apply -input=false hibernate-protect.tfplan
+
+      # SSM cambia una sola vez. Desde aquí ambos roots derivan count=0 y las
+      # autorizaciones temporales solo permiten ejecutar ese destroy revisado.
+      - name: Transition desired state to HIBERNATED
+        if: steps.snapshot.outputs.initial_state == 'ACTIVE'
+        shell: bash
+        env:
+          TRANSITION_MARKER: ${{ steps.snapshot.outputs.transition_marker }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          production_transition_desired_state ACTIVE HIBERNATED "$TRANSITION_MARKER"
+
+      # El whitelist permite solo las 23 direcciones conocidas de runtime; un
+      # rerun puede converger un subconjunto pendiente, nunca recursos extra.
+      - name: Destroy disposable runtime through inspected Terraform plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/runtime plan -input=false -lock-timeout 5m \
+            -var runtime_hibernation_authorized=true \
+            -out hibernate-runtime.tfplan
+          terraform -chdir=infra/terraform/production/runtime show -json hibernate-runtime.tfplan > runtime-delete.json
+          production_require_plan_mode converge-delete-runtime runtime-delete.json
+          terraform -chdir=infra/terraform/production/runtime apply -input=false hibernate-runtime.tfplan
+
+      # El único destroy permitido en data es aws_db_instance.mysql[0]. RDS
+      # genera además el final snapshot único del run; S3/secreto permanecen.
+      - name: Delete RDS through inspected Terraform plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/data plan -input=false -lock-timeout 5m \
+            -var database_hibernation_authorized=true \
+            -var "final_snapshot_identifier=$FINAL_SNAPSHOT" \
+            -out hibernate-data.tfplan
+          terraform -chdir=infra/terraform/production/data show -json hibernate-data.tfplan > data-delete.json
+          production_require_plan_mode converge-delete-data data-delete.json
+          terraform -chdir=infra/terraform/production/data apply -input=false hibernate-data.tfplan
+
+      # Un plan ordinario, sin flags operativos, debe permanecer vacío tras la
+      # hibernación. Esto prueba que SSM es la única intención persistente.
+      - name: Verify stable hibernated Terraform state
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          terraform -chdir=infra/terraform/production/data plan -input=false -lock-timeout 5m -out data-stable.tfplan
+          terraform -chdir=infra/terraform/production/data show -json data-stable.tfplan > data-stable.json
+          production_require_plan_mode stable data-stable.json
+          terraform -chdir=infra/terraform/production/runtime plan -input=false -lock-timeout 5m -out runtime-stable.tfplan
+          terraform -chdir=infra/terraform/production/runtime show -json runtime-stable.tfplan > runtime-stable.json
+          production_require_plan_mode stable runtime-stable.json
+          [[ "$(production_detect_state)" == "HIBERNATED" ]]
+          echo "PRODUCTION_STATE=HIBERNATED" >> "$GITHUB_STEP_SUMMARY"
+          echo "Final snapshot: $FINAL_SNAPSHOT" >> "$GITHUB_STEP_SUMMARY"

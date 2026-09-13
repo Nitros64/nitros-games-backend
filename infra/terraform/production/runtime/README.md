@@ -6,11 +6,11 @@ application security group and Route 53 public hosted zone; production data
 owns RDS, its managed secret and the host-image S3 bucket. Destroying this root
 must not destroy either persistent state or the public hosted zone.
 
-Production is currently hibernated. `runtime_enabled` defaults to `false`, the
-runtime state is empty, and a normal plan creates nothing. All 23 managed
-runtime resources are gated by that flag, including EC2, ALB, ACM, DNS, IAM and
-security-group rules. Re-enablement must be explicit and must happen only after
-database restoration. See [`../HIBERNATION.md`](../HIBERNATION.md).
+Production is currently hibernated. Runtime state is empty and a normal plan
+creates nothing because `runtime_enabled` is derived internally from the live
+SSM desired state. All 23 runtime resources are gated together. No independent
+runtime flag can disagree with SSM. See
+[`../PRODUCTION_LIFECYCLE.md`](../PRODUCTION_LIFECYCLE.md).
 
 ## Enabled architecture
 
@@ -62,8 +62,8 @@ performs no mutation of either source state object, although this runtime state
 owns the narrowly scoped ingress rule attached to the foundation-owned
 application security group.
 
-Remote-state availability checks are enforced only when
-`runtime_enabled=true`. This lets the hibernated runtime plan safely consume
+Remote-state availability checks are enforced only when derived desired state
+is `ACTIVE`. This lets the hibernated runtime plan safely consume
 null RDS outputs without weakening the contracts used during restoration.
 
 Bootstrap owns the ECR repository in local bootstrap state, so this root looks
@@ -112,13 +112,14 @@ that is removed immediately after reconciliation and verification. Terraform
 performs no SQL provisioning and uses no Terraform provisioner or MySQL
 provider.
 
-The separate GitHub production deployer role trusts only the OIDC subject
+The disposable GitHub production deployer role trusts only the OIDC subject
 `repo:Nitros64/nitros-games-backend:environment:production` with audience
 `sts.amazonaws.com`. It may verify images in the exact application ECR
 repository, send `AWS-RunShellScript` only to the production EC2 instance, and
-read SSM command/instance status. It has no Secrets Manager, S3, RDS, SSH, ECR
-push or general infrastructure permissions. Application secrets remain the
-responsibility of the EC2 runtime role.
+read SSM command/instance status, read lifecycle/release metadata and update
+only the release parameter after success. It cannot write lifecycle state and
+has no Secrets Manager, S3, RDS, SSH, ECR push or general infrastructure
+permissions. Application secrets remain the responsibility of the EC2 role.
 
 ## Runtime and deployment contract
 
@@ -160,8 +161,8 @@ Use only reviewed outputs from the production identity root. Do not create
 a full `commit_sha`. Before entering the protected `production` Environment it
 proves the commit belongs to `main` and has a successful push CI run. After
 approval, it assumes the OIDC role, confirms that the corresponding immutable
-ECR image already exists, transports only `compose.yaml` and `deploy.sh` from
-that exact commit through SSM, and runs the established readiness/rollback
+ECR image already exists, discovers the unique EC2 by tags and transports the
+versioned deployment bundle through SSM before running the readiness/rollback
 contract. It then checks the public readiness and catalog GET endpoints. It
 does not build or publish an image and never transports `runtime.env`.
 
@@ -171,8 +172,8 @@ plan:
 ```text
 AWS_REGION=eu-west-1
 AWS_ECR_REPOSITORY=nitros-games-backend
-PRODUCTION_INSTANCE_ID=<ec2_instance_id output>
 AWS_PRODUCTION_DEPLOY_ROLE_ARN=<github_actions_production_role_arn output>
+AWS_PRODUCTION_LIFECYCLE_ROLE_ARN=<foundation lifecycle-role output>
 ```
 
 The `production` GitHub Environment and its required reviewers/allowed branch
@@ -189,14 +190,9 @@ terraform validate
 terraform plan -no-color
 ```
 
-The normal hibernated plan must report `No changes`. After RDS has been restored
-and verified, prepare an explicit reviewed enablement plan with:
-
-```shell
-terraform plan -var='runtime_enabled=true' -out=production-runtime-restore.tfplan
-```
-
-Do not apply until that plan has been reviewed. No `moved` blocks were needed
+The normal hibernated plan must report `No changes`. Restore first transitions
+the authoritative SSM state to `ACTIVE`, then a reviewed runtime plan creates
+only the whitelisted addresses. No `moved` blocks were needed
 for the hibernation flag because the runtime state was already empty before the
 23 resource addresses became conditional.
 
@@ -209,7 +205,7 @@ At roughly 730 running hours per month in `eu-west-1`, budget approximately:
 - one public IPv4 at USD 0.005/hour: about USD 3.65/month;
 - normal data transfer and log storage, if any, are additional.
 
-While `runtime_enabled=false`, none of these runtime resources exists, so this
-runtime-only baseline is zero. Retained snapshots, S3, Secrets Manager, ECR,
+While desired state is `HIBERNATED`, none of these runtime resources exists, so
+this runtime-only baseline is zero. Retained snapshots, S3, Secrets Manager, ECR,
 Route 53/domain registration and the Terraform backend may still incur their
 own storage or recurring charges; see the H5 inventory.

@@ -71,7 +71,7 @@ runtime IAM policy.
 
 ## Database configuration
 
-- MySQL `8.4.10`, pinned to the reviewed 8.4 line;
+- MySQL `8.4` family with automatic compatible minor/patch upgrades enabled;
 - `db.t4g.micro`, Single-AZ;
 - 20 GiB encrypted gp3 storage;
 - storage autoscaling up to 100 GiB;
@@ -82,7 +82,7 @@ runtime IAM policy.
 - password generated and managed by RDS in AWS Secrets Manager;
 - standard CloudWatch metrics only, without Enhanced Monitoring or Performance
   Insights;
-- automatic minor upgrades disabled.
+- major upgrades disabled.
 
 Storage autoscaling increases allocated capacity as required, up to 100 GiB.
 It does not automatically shrink storage later, so increases are effectively
@@ -179,53 +179,49 @@ Terraform never connects to private MySQL through a MySQL provider,
 - final snapshot required;
 - automated backups retained when the instance is deleted;
 - snapshot tags copied from the instance;
-- Terraform `prevent_destroy` enabled for every restored RDS instance.
+- an explicit hibernation authorization is required before a plan may remove
+  an existing RDS instance after desired state becomes `HIBERNATED`.
 
 The canonical manual recovery point is managed as
 `aws_db_snapshot.hibernation` with identifier
 `nitros-games-backend-production-hibernation-20260911` and Terraform
 `prevent_destroy`. Its source is the stable database identifier rather than a
-counted instance expression, so the snapshot remains valid and managed after
-`database_enabled=false`. A block-level dependency orders its initial creation
+counted instance expression, so the snapshot remains valid and managed while
+desired state is `HIBERNATED`. A block-level dependency orders its initial creation
 after the live RDS instance without retaining an invalid `[0]` reference.
 
-The checked-in defaults represent the stable hibernated state:
-`database_enabled=false` and `database_hibernation_authorized=false`. A normal
-plan therefore cannot recreate database compute and carries no destructive
-authorization. Terraform `prevent_destroy` protects the instance after a
-future restoration.
+The SSM lifecycle parameter is the only persistent desired-state source.
+Terraform derives `database_enabled` internally: `ACTIVE` creates/retains RDS
+and `HIBERNATED` removes it. There is no operator-provided
+`database_enabled`. The checked-in `database_hibernation_authorized=false`
+default prevents an ordinary plan from deleting an RDS instance after an
+unexpected state transition.
 
 Temporary destructive authorization must never be committed in an
-automatically loaded `*.auto.tfvars` file. The Git-ignored
-`hibernation-operation.tfvars` used for the reviewed H3/H4 operation remains
-local and explicit:
+automatically loaded `*.auto.tfvars` file. Lifecycle automation passes only
+the temporary authorization and unique final-snapshot input explicitly:
 
 ```hcl
-database_enabled                = false
 database_hibernation_authorized = true
 restore_snapshot_identifier     = null
 hibernation_snapshot_identifier = "nitros-games-backend-production-hibernation-20260911"
-final_snapshot_identifier       = "nitros-games-backend-production-hibernation-final-20260911"
+final_snapshot_identifier       = "nitros-games-backend-production-hibernation-final-run-<github-run-id>"
 ```
 
-Passing it explicitly with `-var-file=hibernation-operation.tfvars` now plans
-no changes, but normal H5 validation does not require this temporarily
-authorized file. Do not commit it. H3 used the authorization to disable AWS
-deletion protection; H4 temporarily removed Terraform `prevent_destroy`; H5
-has restored that lifecycle safeguard.
+Normal planning never enables that authorization. `deploy/production/lifecycle.sh`
+inspects saved plan JSON and permits only the expected RDS update/create/delete
+address for the applicable lifecycle phase.
 
 Before a later intentional deletion, set `final_snapshot_identifier` to a new
 value matching
-`nitros-games-backend-production-hibernation-final-YYYYMMDD`. Validation
-requires that dated form and prevents it from matching the canonical manual
-snapshot whenever hibernation is authorized. This avoids collisions with both
-the 20260911 manual snapshot and a previous final snapshot.
+`nitros-games-backend-production-hibernation-final-run-<github-run-id>`.
+Validation requires that unique operational form and prevents it from matching
+the canonical manual snapshot.
 
-`restore_snapshot_identifier` is `null` while hibernated. During a future
-restoration it identifies one verified retained snapshot; snapshot-owned
-database name and master-user settings are then inherited rather than supplied
-as new database creation arguments. Restoration must be planned and reviewed
-before recreating runtime.
+`restore_snapshot_identifier` is transient and used only during creation. The
+ordinary ACTIVE configuration later omits it. Terraform ignores that one
+ForceNew provenance attribute so normalization cannot replace the restored
+database; the restore workflow requires the resulting normal plan to be empty.
 
 S3 is persistent data and should normally remain untouched while production
 compute is stopped or destroyed. Its storage and retained object versions will

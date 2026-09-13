@@ -31,8 +31,8 @@ variable "environment" {
   }
 }
 
-variable "runtime_enabled" {
-  description = "Whether disposable production runtime resources should exist. False is the safe hibernated state."
+variable "runtime_hibernation_authorized" {
+  description = "Explicit temporary safety gate for a reviewed runtime destruction while SSM desiredState is HIBERNATED."
   type        = bool
   default     = false
 }

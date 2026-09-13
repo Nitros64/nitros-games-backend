@@ -25,17 +25,17 @@ output "instance_profile_name" {
 
 output "application_security_group_id" {
   description = "Existing ingress-free application security group attached to EC2."
-  value       = var.runtime_enabled ? data.terraform_remote_state.foundation.outputs.application_security_group_id : null
+  value       = local.runtime_enabled ? data.terraform_remote_state.foundation.outputs.application_security_group_id : null
 }
 
 output "runtime_subnet_id" {
   description = "Existing public subnet containing the first production runtime instance."
-  value       = var.runtime_enabled ? data.terraform_remote_state.foundation.outputs.public_subnet_ids[var.runtime_subnet_key] : null
+  value       = local.runtime_enabled ? data.terraform_remote_state.foundation.outputs.public_subnet_ids[var.runtime_subnet_key] : null
 }
 
 output "public_api_url" {
   description = "Canonical HTTPS URL for the production API."
-  value       = var.runtime_enabled ? "https://${var.api_domain_name}" : null
+  value       = local.runtime_enabled ? "https://${var.api_domain_name}" : null
 }
 
 output "load_balancer_dns_name" {
@@ -65,5 +65,10 @@ output "github_actions_production_role_arn" {
 
 output "trusted_github_environment_subject" {
   description = "Exact GitHub OIDC subject allowed to assume the production deployment role."
-  value       = var.runtime_enabled ? "repo:${var.github_owner}/${var.github_repository}:environment:${var.github_environment}" : null
+  value       = local.runtime_enabled ? "repo:${var.github_owner}/${var.github_repository}:environment:${var.github_environment}" : null
+}
+
+output "production_desired_state" {
+  description = "Live authoritative production desired state read from SSM."
+  value       = local.production_desired_state
 }

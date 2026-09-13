@@ -28,6 +28,9 @@ jobs:
         root:
           - bootstrap
           - staging
+          - production/foundation
+          - production/data
+          - production/identity
           - production/runtime
     defaults:
       run:
@@ -119,10 +122,18 @@ jobs:
       - name: Test deployment contracts
         run: |
           bash -n deploy/production/deploy.sh
+          bash -n deploy/production/deploy-via-ssm.sh
+          bash -n deploy/production/configure-runtime-via-ssm.sh
+          bash -n deploy/production/lifecycle.sh
           bash -n deploy/production/release_guard.sh
+          bash -n deploy/production/verify-restored-db.sh
           bash deploy/staging/deploy_test.sh
+          bash deploy/production/configure_runtime_via_ssm_test.sh
           bash deploy/production/deploy_test.sh
+          bash deploy/production/deploy_via_ssm_test.sh
+          bash deploy/production/lifecycle_test.sh
           bash deploy/production/release_guard_test.sh
+          bash deploy/production/verify_restored_db_test.sh
 
       # Activa el builder moderno y la caché compartida de GitHub Actions.
       - name: Set up Docker Buildx

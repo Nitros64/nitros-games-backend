@@ -1,0 +1,117 @@
+name: Stop Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  stop:
+    name: Stop production compute without changing desired state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
+    steps:
+      # Obtiene el guard común desde la rama protegida.
+      - name: Check out lifecycle safeguards
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # No se acepta ninguna variable que pueda cambiar desiredState.
+      - name: Validate inputs
+        shell: bash
+        env:
+          AWS_PRODUCTION_LIFECYCLE_ROLE_ARN: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_REGION"
+          test -n "$AWS_PRODUCTION_LIFECYCLE_ROLE_ARN"
+          bash -n deploy/production/lifecycle.sh
+
+      # Asume el mismo rol permanente y sujeto OIDC del Environment production.
+      - name: Configure AWS lifecycle credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_LIFECYCLE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-production-stop-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      # ACTIVE pasa a STOPPED; STOPPED es un no-op verificado. Una producción
+      # completamente HIBERNATED también termina sin mutación.
+      - name: Resolve idempotent stop
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          lifecycle="$(production_read_lifecycle_state)"
+          actual="$(production_detect_state)"
+          action="$(production_resolve_stop_action "$lifecycle" "$actual")" || exit 70
+          case "$action" in
+            STOP)
+              echo "already_hibernated=false" >> "$GITHUB_OUTPUT"
+              echo "needs_stop=true" >> "$GITHUB_OUTPUT"
+              ;;
+            VERIFY_STOPPED)
+              echo "already_hibernated=false" >> "$GITHUB_OUTPUT"
+              echo "needs_stop=false" >> "$GITHUB_OUTPUT"
+              ;;
+            ALREADY_HIBERNATED)
+              echo "already_hibernated=true" >> "$GITHUB_OUTPUT"
+              echo "needs_stop=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          echo "instance_id=$(production_require_single_instance)" >> "$GITHUB_OUTPUT"
+
+      # Detiene la aplicación antes de la base de datos para evitar nuevas escrituras.
+      - name: Stop application instance
+        if: steps.target.outputs.needs_stop == 'true'
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          aws ec2 stop-instances --instance-ids "$INSTANCE_ID" >/dev/null
+          production_wait_for_instance_state "$INSTANCE_ID" stopped
+
+      # RDS conserva almacenamiento y backups; este paso no es hibernación ni destroy.
+      - name: Stop database
+        if: steps.target.outputs.needs_stop == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          aws rds stop-db-instance --db-instance-identifier "$PRODUCTION_DB_IDENTIFIER" >/dev/null
+          production_wait_for_database_status stopped
+
+      # Comprueba también los no-op sin alterar el desiredState persistente.
+      - name: Verify final state
+        shell: bash
+        env:
+          ALREADY_HIBERNATED: ${{ steps.target.outputs.already_hibernated }}
+        run: |
+          set -euo pipefail
+          source deploy/production/lifecycle.sh
+          if [[ "$ALREADY_HIBERNATED" == "true" ]]; then
+            [[ "$(production_detect_state)" == "HIBERNATED" ]]
+            echo "PRODUCTION_STATE=HIBERNATED (already hibernated; no mutation)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            [[ "$(production_detect_state)" == "STOPPED" ]]
+            echo "PRODUCTION_STATE=STOPPED" >> "$GITHUB_STEP_SUMMARY"
+          fi
