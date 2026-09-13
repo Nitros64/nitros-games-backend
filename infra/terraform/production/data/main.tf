@@ -126,7 +126,7 @@ resource "aws_db_instance" "mysql" {
   identifier = local.db_instance_identifier
 
   engine         = "mysql"
-  engine_version = var.mysql_engine_version
+  engine_version = var.restore_snapshot_identifier == null ? var.mysql_engine_version : null
   instance_class = "db.t4g.micro"
 
   snapshot_identifier = var.restore_snapshot_identifier
@@ -165,10 +165,13 @@ resource "aws_db_instance" "mysql" {
   performance_insights_enabled = false
 
   lifecycle {
-    # snapshot_identifier is a create-only provenance input and ForceNew in
-    # the AWS provider. A restored instance must normalize to the ordinary
-    # ACTIVE configuration without Terraform proposing replacement.
-    ignore_changes = [snapshot_identifier]
+    # Snapshot provenance and the concrete MySQL 8.4 patch are determined at
+    # creation time or advanced by AWS. Normal ACTIVE plans must not replace a
+    # restored instance or attempt to reconcile its patch version backwards.
+    ignore_changes = [
+      snapshot_identifier,
+      engine_version,
+    ]
   }
 
   tags = {

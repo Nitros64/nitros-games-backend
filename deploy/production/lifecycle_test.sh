@@ -207,6 +207,8 @@ done
 
 readonly foundation_control="$repository_root/infra/terraform/production/foundation/production-lifecycle-control.tf"
 readonly runtime_iam="$repository_root/infra/terraform/production/runtime/iam.tf"
+readonly data_main="$repository_root/infra/terraform/production/data/main.tf"
+readonly data_variables="$repository_root/infra/terraform/production/data/variables.tf"
 grep -q '/${var.project_name}/${var.environment}/lifecycle/state' "$foundation_control"
 grep -q '/${var.project_name}/${var.environment}/lifecycle/release' "$foundation_control"
 grep -q 'production_release_parameter_arn' "$runtime_iam"
@@ -230,6 +232,14 @@ fi
 [[ "$(grep -c 'resource "aws_iam_policy" "github_production_lifecycle_' "$foundation_control")" -eq 4 ]]
 [[ "$(grep -c 'production_lifecycle_state_parameter_arn' "$runtime_iam")" -eq 1 ]]
 [[ "$(grep -c 'production_release_parameter_arn' "$runtime_iam")" -eq 2 ]]
+
+grep -Fq 'engine_version = var.restore_snapshot_identifier == null ? var.mysql_engine_version : null' "$data_main"
+ignore_changes_block="$(sed -n '/ignore_changes = \[/,/^[[:space:]]*\]/p' "$data_main")"
+grep -q 'snapshot_identifier,' <<< "$ignore_changes_block"
+grep -q 'engine_version,' <<< "$ignore_changes_block"
+mysql_engine_variable="$(sed -n '/variable "mysql_engine_version" {/,/^}/p' "$data_variables")"
+grep -Eq 'default[[:space:]]*=[[:space:]]*"8\.4"' <<< "$mysql_engine_variable"
+grep -Fq 'var.mysql_engine_version == "8.4"' <<< "$mysql_engine_variable"
 
 for tag in 'Name,Values=nitros-games-backend-production-application' \
   'Project,Values=$PRODUCTION_PROJECT' 'Environment,Values=$PRODUCTION_ENVIRONMENT' \
