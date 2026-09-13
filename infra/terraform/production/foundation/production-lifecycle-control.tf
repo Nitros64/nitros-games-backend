@@ -15,6 +15,17 @@ locals {
   application_role_arn             = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_prefix}-application"
   deployment_role_arn              = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_prefix}-github-deployer"
   application_profile_arn          = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${local.name_prefix}-application"
+  application_security_group_arn   = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.application.id}"
+  runtime_security_group_arn       = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*"
+  runtime_security_group_rule_arn  = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group-rule/*"
+  runtime_instance_arn             = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
+  runtime_volume_arn               = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"
+  runtime_network_interface_arn    = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+  runtime_public_endpoint_name     = "${var.project_name}-prod-api"
+  runtime_load_balancer_arn        = "arn:${data.aws_partition.current.partition}:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:loadbalancer/app/${local.runtime_public_endpoint_name}/*"
+  runtime_listener_arn             = "arn:${data.aws_partition.current.partition}:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:listener/app/${local.runtime_public_endpoint_name}/*/*"
+  runtime_target_group_arn         = "arn:${data.aws_partition.current.partition}:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:targetgroup/${local.runtime_public_endpoint_name}/*"
+  runtime_certificate_arn          = "arn:${data.aws_partition.current.partition}:acm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:certificate/*"
   github_oidc_provider_arn         = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
   github_environment_subject       = "repo:Nitros64/${var.project_name}:environment:production"
 
@@ -238,6 +249,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_data" {
       variable = "aws:RequestTag/Environment"
       values   = [var.environment]
     }
+
   }
 
   statement {
@@ -271,7 +283,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_data" {
       "s3:GetAccelerateConfiguration",
       "s3:GetBucketAcl",
       "s3:GetBucketCORS",
-      "s3:GetBucketLifecycleConfiguration",
+      "s3:GetLifecycleConfiguration",
       "s3:GetBucketLogging",
       "s3:GetBucketObjectLockConfiguration",
       "s3:GetBucketOwnershipControls",
@@ -353,17 +365,61 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
       variable = "aws:RequestTag/Environment"
       values   = [var.environment]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+  }
+
+  statement {
+    sid     = "TagNewProductionRuntimeResources"
+    effect  = "Allow"
+    actions = ["ec2:CreateTags"]
+    resources = [
+      local.runtime_instance_arn,
+      local.runtime_network_interface_arn,
+      local.runtime_security_group_arn,
+      local.runtime_security_group_rule_arn,
+      local.runtime_volume_arn
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:CreateAction"
+      values = [
+        "AuthorizeSecurityGroupEgress",
+        "AuthorizeSecurityGroupIngress",
+        "CreateSecurityGroup",
+        "RunInstances"
+      ]
+    }
   }
 
   statement {
     sid    = "ManageTaggedProductionCompute"
     effect = "Allow"
     actions = [
-      "ec2:CreateTags",
       "ec2:DeleteSecurityGroup",
-      "ec2:DeleteTags",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupIngress",
       "ec2:StartInstances",
       "ec2:StopInstances",
       "ec2:TerminateInstances"
@@ -381,19 +437,58 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
       variable = "aws:ResourceTag/Environment"
       values   = [var.environment]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Component"
+      values   = ["production-runtime"]
+    }
   }
 
   statement {
-    sid    = "ManageProductionSecurityGroupRules"
+    sid    = "ManagePersistentApplicationIngress"
+    effect = "Allow"
+    actions = [
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress"
+    ]
+    resources = [local.application_security_group_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+  }
+
+  statement {
+    sid    = "ManageTaggedRuntimeSecurityGroupRules"
     effect = "Allow"
     actions = [
       "ec2:AuthorizeSecurityGroupEgress",
       "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:ModifySecurityGroupRules",
       "ec2:RevokeSecurityGroupEgress",
       "ec2:RevokeSecurityGroupIngress"
     ]
-    resources = ["*"]
+    resources = [local.runtime_security_group_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Component"
+      values   = ["production-runtime"]
+    }
 
     condition {
       test     = "StringEquals"
@@ -477,6 +572,12 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
       variable = "ssm:resourceTag/Environment"
       values   = [var.environment]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Component"
+      values   = ["production-runtime"]
+    }
   }
 
   statement {
@@ -510,9 +611,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
     sid    = "InspectProductionRuntimeEdge"
     effect = "Allow"
     actions = [
-      "acm:DescribeCertificate",
       "acm:ListCertificates",
-      "acm:ListTagsForCertificate",
       "elasticloadbalancing:DescribeListeners",
       "elasticloadbalancing:DescribeListenerAttributes",
       "elasticloadbalancing:DescribeLoadBalancerAttributes",
@@ -529,26 +628,31 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
   }
 
   statement {
-    sid    = "ManageTaggedProductionLoadBalancing"
+    sid    = "CreateTaggedProductionLoadBalancer"
     effect = "Allow"
     actions = [
-      "elasticloadbalancing:AddTags",
       "elasticloadbalancing:CreateListener",
-      "elasticloadbalancing:CreateLoadBalancer",
-      "elasticloadbalancing:CreateTargetGroup",
-      "elasticloadbalancing:DeleteListener",
-      "elasticloadbalancing:DeleteLoadBalancer",
-      "elasticloadbalancing:DeleteTargetGroup",
-      "elasticloadbalancing:DeregisterTargets",
-      "elasticloadbalancing:ModifyLoadBalancerAttributes",
-      "elasticloadbalancing:ModifyTargetGroup",
-      "elasticloadbalancing:ModifyTargetGroupAttributes",
-      "elasticloadbalancing:RegisterTargets",
-      "elasticloadbalancing:RemoveTags",
-      "elasticloadbalancing:SetSecurityGroups",
-      "elasticloadbalancing:SetSubnets"
+      "elasticloadbalancing:CreateLoadBalancer"
     ]
-    resources = ["*"]
+    resources = [local.runtime_load_balancer_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
 
     condition {
       test     = "StringEquals"
@@ -558,20 +662,186 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
   }
 
   statement {
-    sid    = "ManageProductionApiCertificate"
-    effect = "Allow"
-    actions = [
-      "acm:AddTagsToCertificate",
-      "acm:DeleteCertificate",
-      "acm:RemoveTagsFromCertificate",
-      "acm:RequestCertificate"
-    ]
-    resources = ["*"]
+    sid       = "CreateTaggedProductionTargetGroup"
+    effect    = "Allow"
+    actions   = ["elasticloadbalancing:CreateTargetGroup"]
+    resources = [local.runtime_target_group_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
 
     condition {
       test     = "StringEquals"
       variable = "aws:RequestedRegion"
       values   = [var.aws_region]
+    }
+  }
+
+  statement {
+    sid     = "TagNewProductionLoadBalancingResources"
+    effect  = "Allow"
+    actions = ["elasticloadbalancing:AddTags"]
+    resources = [
+      local.runtime_listener_arn,
+      local.runtime_load_balancer_arn,
+      local.runtime_target_group_arn
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "elasticloadbalancing:CreateAction"
+      values   = ["CreateListener", "CreateLoadBalancer", "CreateTargetGroup"]
+    }
+  }
+
+  statement {
+    sid    = "ManageTaggedProductionLoadBalancing"
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:DeleteListener",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:DeleteTargetGroup",
+      "elasticloadbalancing:DeregisterTargets",
+      "elasticloadbalancing:ModifyLoadBalancerAttributes",
+      "elasticloadbalancing:ModifyTargetGroup",
+      "elasticloadbalancing:ModifyTargetGroupAttributes",
+      "elasticloadbalancing:RegisterTargets",
+      "elasticloadbalancing:SetSecurityGroups",
+      "elasticloadbalancing:SetSubnets"
+    ]
+    resources = [
+      local.runtime_listener_arn,
+      local.runtime_load_balancer_arn,
+      local.runtime_target_group_arn
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Component"
+      values   = ["production-runtime"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+  }
+
+  statement {
+    sid       = "RequestProductionApiCertificate"
+    effect    = "Allow"
+    actions   = ["acm:RequestCertificate"]
+    resources = ["*"]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "acm:DomainNames"
+      values   = ["api.${var.domain_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "acm:ValidationMethod"
+      values   = ["DNS"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+  }
+
+  statement {
+    sid    = "InspectAndDeleteTaggedProductionApiCertificate"
+    effect = "Allow"
+    actions = [
+      "acm:DeleteCertificate",
+      "acm:DescribeCertificate",
+      "acm:ListTagsForCertificate"
+    ]
+    resources = [local.runtime_certificate_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Component"
+      values   = ["production-runtime"]
     }
   }
 
@@ -584,7 +854,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
     condition {
       test     = "ForAllValues:StringLike"
       variable = "route53:ChangeResourceRecordSetsNormalizedRecordNames"
-      values   = ["api.${var.domain_name}", "_*.${var.domain_name}"]
+      values   = ["api.${var.domain_name}", "_*.api.${var.domain_name}"]
     }
   }
 }

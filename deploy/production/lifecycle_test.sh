@@ -201,6 +201,15 @@ readonly runtime_iam="$repository_root/infra/terraform/production/runtime/iam.tf
 grep -q '/${var.project_name}/${var.environment}/lifecycle/state' "$foundation_control"
 grep -q '/${var.project_name}/${var.environment}/lifecycle/release' "$foundation_control"
 grep -q 'production_release_parameter_arn' "$runtime_iam"
+grep -q 'resources = \[local.application_security_group_arn\]' "$foundation_control"
+grep -q 'aws:ResourceTag/Component' "$foundation_control"
+grep -q 'elasticloadbalancing:CreateAction' "$foundation_control"
+grep -q 'acm:DomainNames' "$foundation_control"
+grep -Fq '"_*.api.${var.domain_name}"' "$foundation_control"
+if grep -Fq '"_*.${var.domain_name}"' "$foundation_control"; then
+  echo "Route53 lifecycle scope still permits validation records outside the API namespace." >&2
+  exit 1
+fi
 if grep -q 'resource "aws_iam_role_policy" "github_production_lifecycle_' "$foundation_control"; then
   echo "Lifecycle permissions must not consume the aggregate inline-policy quota." >&2
   exit 1
