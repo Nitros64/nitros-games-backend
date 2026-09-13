@@ -262,6 +262,8 @@ fi
 ecr_inspection_statement="$(sed -n '/sid[[:space:]]*= "VerifyImmutableProductionImage"/,/^[[:space:]]*}/p' "$foundation_control")"
 grep -q 'ecr:ListTagsForResource' <<< "$ecr_inspection_statement"
 grep -Fq 'resources = [local.ecr_repository_arn]' <<< "$ecr_inspection_statement"
+runtime_inspection_statement="$(sed -n '/sid[[:space:]]*= "InspectProductionRuntime"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:DescribeInstanceTypes' <<< "$runtime_inspection_statement"
 if grep -q 'CreateTaggedProductionCompute' "$foundation_control"; then
   echo "EC2 create permissions must be split by authorization resource type." >&2
   exit 1
@@ -300,6 +302,26 @@ grep -Fq 'resources = [local.runtime_security_group_arn]' <<< "$tagged_security_
 for tag_key in Project Environment Component; do
   grep -q "aws:RequestTag/$tag_key" <<< "$tagged_security_group_statement"
 done
+rule_resource_statement="$(sed -n '/sid[[:space:]]*= "CreateProductionRuntimeSecurityGroupRules"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:AuthorizeSecurityGroupIngress' <<< "$rule_resource_statement"
+grep -q 'ec2:AuthorizeSecurityGroupEgress' <<< "$rule_resource_statement"
+grep -Fq 'resources = [local.runtime_security_group_rule_arn]' <<< "$rule_resource_statement"
+grep -q 'variable = "aws:RequestedRegion"' <<< "$rule_resource_statement"
+grep -Fq 'values   = [var.aws_region]' <<< "$rule_resource_statement"
+if grep -q 'aws:ResourceTag/' <<< "$rule_resource_statement"; then
+  echo "A not-yet-created security-group-rule must not require resource tags." >&2
+  exit 1
+fi
+parent_security_group_statement="$(sed -n '/sid[[:space:]]*= "ManageTaggedRuntimeSecurityGroupRules"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:AuthorizeSecurityGroupIngress' <<< "$parent_security_group_statement"
+grep -q 'ec2:AuthorizeSecurityGroupEgress' <<< "$parent_security_group_statement"
+grep -Fq 'resources = [local.runtime_security_group_arn]' <<< "$parent_security_group_statement"
+for tag_key in Project Environment Component; do
+  grep -q "aws:ResourceTag/$tag_key" <<< "$parent_security_group_statement"
+done
+hosted_zone_read_statement="$(sed -n '/sid[[:space:]]*= "ReadProductionHostedZone"/,/^  }/p' "$foundation_control")"
+grep -q 'route53:GetHostedZone' <<< "$hosted_zone_read_statement"
+grep -Fq 'resources = [aws_route53_zone.production.arn]' <<< "$hosted_zone_read_statement"
 certificate_tag_statement="$(sed -n '/sid[[:space:]]*= "TagNewProductionApiCertificate"/,/^  }/p' "$foundation_control")"
 grep -q 'acm:AddTagsToCertificate' <<< "$certificate_tag_statement"
 grep -Fq 'resources = [local.runtime_certificate_arn]' <<< "$certificate_tag_statement"

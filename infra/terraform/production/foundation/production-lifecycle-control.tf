@@ -336,6 +336,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
       "ec2:DescribeImages",
       "ec2:DescribeInstanceAttribute",
       "ec2:DescribeInstanceStatus",
+      "ec2:DescribeInstanceTypes",
       "ec2:DescribeInstances",
       "ec2:DescribeNetworkInterfaces",
       "ec2:DescribeSecurityGroupRules",
@@ -695,6 +696,29 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
       "route53:ListResourceRecordSets"
     ]
     resources = ["*"]
+  }
+
+  statement {
+    sid       = "ReadProductionHostedZone"
+    effect    = "Allow"
+    actions   = ["route53:GetHostedZone"]
+    resources = [aws_route53_zone.production.arn]
+  }
+
+  statement {
+    sid    = "CreateProductionRuntimeSecurityGroupRules"
+    effect = "Allow"
+    actions = [
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:AuthorizeSecurityGroupIngress"
+    ]
+    resources = [local.runtime_security_group_rule_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
   }
 
   statement {
