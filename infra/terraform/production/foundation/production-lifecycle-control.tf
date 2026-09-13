@@ -16,6 +16,8 @@ locals {
   deployment_role_arn              = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_prefix}-github-deployer"
   application_profile_arn          = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${local.name_prefix}-application"
   application_security_group_arn   = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/${aws_security_group.application.id}"
+  amazon_linux_image_arn           = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}::image/ami-*"
+  runtime_subnet_arn               = aws_subnet.public["a"].arn
   runtime_security_group_arn       = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*"
   runtime_security_group_rule_arn  = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group-rule/*"
   runtime_instance_arn             = "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
@@ -358,13 +360,69 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
   }
 
   statement {
-    sid    = "CreateTaggedProductionCompute"
-    effect = "Allow"
-    actions = [
-      "ec2:CreateSecurityGroup",
-      "ec2:RunInstances"
+    sid       = "RunProductionInstanceFromAmazonImage"
+    effect    = "Allow"
+    actions   = ["ec2:RunInstances"]
+    resources = [local.amazon_linux_image_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Owner"
+      values   = ["amazon"]
+    }
+  }
+
+  statement {
+    sid     = "UseProductionRuntimeLaunchNetwork"
+    effect  = "Allow"
+    actions = ["ec2:RunInstances"]
+    resources = [
+      local.application_security_group_arn,
+      local.runtime_network_interface_arn,
+      local.runtime_subnet_arn
     ]
-    resources = ["*"]
+  }
+
+  statement {
+    sid     = "CreateTaggedProductionInstanceAndVolume"
+    effect  = "Allow"
+    actions = ["ec2:RunInstances"]
+    resources = [
+      local.runtime_instance_arn,
+      local.runtime_volume_arn
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+  }
+
+  statement {
+    sid       = "UseProductionVpcForRuntimeSecurityGroup"
+    effect    = "Allow"
+    actions   = ["ec2:CreateSecurityGroup"]
+    resources = [aws_vpc.production.arn]
+  }
+
+  statement {
+    sid       = "CreateTaggedProductionRuntimeSecurityGroup"
+    effect    = "Allow"
+    actions   = ["ec2:CreateSecurityGroup"]
+    resources = [local.runtime_security_group_arn]
 
     condition {
       test     = "StringEquals"
@@ -854,6 +912,37 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_edge" {
       test     = "StringEquals"
       variable = "aws:ResourceTag/Component"
       values   = ["production-runtime"]
+    }
+  }
+
+  statement {
+    sid       = "TagNewProductionApiCertificate"
+    effect    = "Allow"
+    actions   = ["acm:AddTagsToCertificate"]
+    resources = [local.runtime_certificate_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.project_name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = [var.environment]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Component"
+      values   = ["production-runtime"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
     }
   }
 

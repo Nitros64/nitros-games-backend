@@ -262,6 +262,50 @@ fi
 ecr_inspection_statement="$(sed -n '/sid[[:space:]]*= "VerifyImmutableProductionImage"/,/^[[:space:]]*}/p' "$foundation_control")"
 grep -q 'ecr:ListTagsForResource' <<< "$ecr_inspection_statement"
 grep -Fq 'resources = [local.ecr_repository_arn]' <<< "$ecr_inspection_statement"
+if grep -q 'CreateTaggedProductionCompute' "$foundation_control"; then
+  echo "EC2 create permissions must be split by authorization resource type." >&2
+  exit 1
+fi
+amazon_image_statement="$(sed -n '/sid[[:space:]]*= "RunProductionInstanceFromAmazonImage"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:RunInstances' <<< "$amazon_image_statement"
+grep -Fq 'resources = [local.amazon_linux_image_arn]' <<< "$amazon_image_statement"
+grep -q 'variable = "ec2:Owner"' <<< "$amazon_image_statement"
+grep -Fq 'values   = ["amazon"]' <<< "$amazon_image_statement"
+launch_network_statement="$(sed -n '/sid[[:space:]]*= "UseProductionRuntimeLaunchNetwork"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:RunInstances' <<< "$launch_network_statement"
+grep -q 'local.application_security_group_arn' <<< "$launch_network_statement"
+grep -q 'local.runtime_network_interface_arn' <<< "$launch_network_statement"
+grep -q 'local.runtime_subnet_arn' <<< "$launch_network_statement"
+if grep -q 'aws:RequestTag/' <<< "$launch_network_statement"; then
+  echo "Existing EC2 launch dependencies must not require request tags." >&2
+  exit 1
+fi
+tagged_compute_statement="$(sed -n '/sid[[:space:]]*= "CreateTaggedProductionInstanceAndVolume"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:RunInstances' <<< "$tagged_compute_statement"
+grep -q 'local.runtime_instance_arn' <<< "$tagged_compute_statement"
+grep -q 'local.runtime_volume_arn' <<< "$tagged_compute_statement"
+for tag_key in Project Environment Component; do
+  grep -q "aws:RequestTag/$tag_key" <<< "$tagged_compute_statement"
+done
+vpc_security_group_statement="$(sed -n '/sid[[:space:]]*= "UseProductionVpcForRuntimeSecurityGroup"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:CreateSecurityGroup' <<< "$vpc_security_group_statement"
+grep -Fq 'resources = [aws_vpc.production.arn]' <<< "$vpc_security_group_statement"
+if grep -q 'aws:RequestTag/' <<< "$vpc_security_group_statement"; then
+  echo "The existing production VPC must not require new-resource request tags." >&2
+  exit 1
+fi
+tagged_security_group_statement="$(sed -n '/sid[[:space:]]*= "CreateTaggedProductionRuntimeSecurityGroup"/,/^  }/p' "$foundation_control")"
+grep -q 'ec2:CreateSecurityGroup' <<< "$tagged_security_group_statement"
+grep -Fq 'resources = [local.runtime_security_group_arn]' <<< "$tagged_security_group_statement"
+for tag_key in Project Environment Component; do
+  grep -q "aws:RequestTag/$tag_key" <<< "$tagged_security_group_statement"
+done
+certificate_tag_statement="$(sed -n '/sid[[:space:]]*= "TagNewProductionApiCertificate"/,/^  }/p' "$foundation_control")"
+grep -q 'acm:AddTagsToCertificate' <<< "$certificate_tag_statement"
+grep -Fq 'resources = [local.runtime_certificate_arn]' <<< "$certificate_tag_statement"
+for tag_key in Project Environment Component; do
+  grep -q "aws:RequestTag/$tag_key" <<< "$certificate_tag_statement"
+done
 
 grep -Fq 'engine_version = var.restore_snapshot_identifier == null ? var.mysql_engine_version : null' "$data_main"
 ignore_changes_block="$(sed -n '/ignore_changes = \[/,/^[[:space:]]*\]/p' "$data_main")"
