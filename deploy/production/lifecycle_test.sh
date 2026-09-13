@@ -232,6 +232,9 @@ fi
 [[ "$(grep -c 'resource "aws_iam_policy" "github_production_lifecycle_' "$foundation_control")" -eq 4 ]]
 [[ "$(grep -c 'production_lifecycle_state_parameter_arn' "$runtime_iam")" -eq 1 ]]
 [[ "$(grep -c 'production_release_parameter_arn' "$runtime_iam")" -eq 2 ]]
+ecr_inspection_statement="$(sed -n '/sid[[:space:]]*= "VerifyImmutableProductionImage"/,/^[[:space:]]*}/p' "$foundation_control")"
+grep -q 'ecr:ListTagsForResource' <<< "$ecr_inspection_statement"
+grep -Fq 'resources = [local.ecr_repository_arn]' <<< "$ecr_inspection_statement"
 
 grep -Fq 'engine_version = var.restore_snapshot_identifier == null ? var.mysql_engine_version : null' "$data_main"
 ignore_changes_block="$(sed -n '/ignore_changes = \[/,/^[[:space:]]*\]/p' "$data_main")"

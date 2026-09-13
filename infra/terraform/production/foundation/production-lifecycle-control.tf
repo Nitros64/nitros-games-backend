@@ -563,7 +563,7 @@ data "aws_iam_policy_document" "github_production_lifecycle_runtime_compute" {
   statement {
     sid       = "VerifyImmutableProductionImage"
     effect    = "Allow"
-    actions   = ["ecr:DescribeImages", "ecr:DescribeRepositories"]
+    actions   = ["ecr:DescribeImages", "ecr:DescribeRepositories", "ecr:ListTagsForResource"]
     resources = [local.ecr_repository_arn]
   }
 
