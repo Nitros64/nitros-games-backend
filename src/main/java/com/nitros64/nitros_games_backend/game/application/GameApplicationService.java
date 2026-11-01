@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nitros64.nitros_games_backend.catalog.application.GameGenreService;
 import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.game.domain.GameData;
+import com.nitros64.nitros_games_backend.game.domain.PublicationStatus;
 import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
 import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
 
@@ -50,7 +51,34 @@ public class GameApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<GameDetails> findAdminGames() {
+        return games.findAllAdminDetailed().stream().map(this::toDetails).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public GameDetails findAdminGame(Long gameId) {
+        return toDetails(requireGame(gameId));
+    }
+
+    @Transactional
+    public GameDetails changePublicationStatus(Long gameId,
+            PublicationStatus status) {
+        var game = requireGame(gameId);
+        game.changePublicationStatus(status);
+        return toDetails(games.saveAndFlush(game));
+    }
+
+    @Transactional(readOnly = true)
+    public void requirePublishedGame(Long gameId) {
+        if (!games.existsByIdAndPublicationStatus(gameId,
+                PublicationStatus.PUBLISHED)) {
+            throw new ResourceNotFoundException("Game not found");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public GameDetails findGame(Long gameId) {
+        requirePublishedGame(gameId);
         return toDetails(games.findDetailedById(gameId)
                 .orElseThrow(() -> new ResourceNotFoundException("Game not found")));
     }
@@ -109,6 +137,7 @@ public class GameApplicationService {
                 game.getDeveloperCount(),
                 game.getGenres().stream()
                         .map(GameGenre::getId)
-                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+                        .collect(Collectors.toCollection(LinkedHashSet::new)),
+                game.getPublicationStatus());
     }
 }

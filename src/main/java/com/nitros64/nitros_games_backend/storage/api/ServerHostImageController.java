@@ -34,7 +34,7 @@ import jakarta.validation.constraints.Size;
 
 @RestController
 @Validated
-@RequestMapping({"/api/v1/server-host-images", "/api/v1/serverhostimage"})
+@RequestMapping({ "/api/v1/server-host-images", "/api/v1/serverhostimage" })
 public class ServerHostImageController {
 
     private final ServerHostImageService service;
@@ -84,18 +84,14 @@ public class ServerHostImageController {
                 .body(problem);
     }
 
-    @PostMapping(
-            path = {"", "/upload_image"},
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = { "", "/upload_image" }, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> upload(
             @Valid @ModelAttribute ServerHostImageUploadRequest request) {
         var response = mapper.toResponse(service.create(request.name(), request.fileHostImage()));
         return ApiResponse.created(response, "/api/v1/server-host-images/{id}", response.id());
     }
 
-    @PutMapping(
-            path = {"/{id}/image", "/upload_image/{id}"},
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(path = { "/{id}/image", "/upload_image/{id}" }, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> updateImage(
             @PathVariable @Positive Long id,
             @Valid @ModelAttribute ServerHostImageUploadRequest request) {
@@ -105,9 +101,7 @@ public class ServerHostImageController {
                 request.fileHostImage())));
     }
 
-    @PutMapping(
-            path = {"/{id}/name", "/update_name/{id}"},
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(path = { "/{id}/name", "/update_name/{id}" }, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ServerHostImageResponse> updateName(
             @PathVariable @Positive Long id,
             @Valid @ModelAttribute ServerHostImageNameRequest request) {

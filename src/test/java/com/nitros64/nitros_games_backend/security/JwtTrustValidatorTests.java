@@ -61,6 +61,27 @@ class JwtTrustValidatorTests {
     }
 
     @Test
+    void rejectsExpiredAccessToken() {
+        Jwt expired = Jwt.withTokenValue("expired-test-token").header("alg", "RS256")
+                .issuer(ISSUER).subject("test-subject")
+                .claim("azp", "nitros-games-cli").audience(List.of(RESOURCE))
+                .issuedAt(Instant.now().minusSeconds(600))
+                .notBefore(Instant.now().minusSeconds(600))
+                .expiresAt(Instant.now().minusSeconds(300)).build();
+        assertThat(validator.validate(expired).hasErrors()).isTrue();
+    }
+
+    @Test
+    void rejectsAccessTokenNotYetValid() {
+        Jwt future = Jwt.withTokenValue("future-test-token").header("alg", "RS256")
+                .issuer(ISSUER).subject("test-subject")
+                .claim("azp", "nitros-games-cli").audience(List.of(RESOURCE))
+                .notBefore(Instant.now().plusSeconds(300))
+                .expiresAt(Instant.now().plusSeconds(600)).build();
+        assertThat(validator.validate(future).hasErrors()).isTrue();
+    }
+
+    @Test
     void rejectsWrongClientIdentity() {
         Jwt jwt = jwt(Map.of(
                 "client_id", "unexpected-client",

@@ -51,6 +51,7 @@ public class SecurityConfiguration {
                                 .permitAll()
                         .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/**").permitAll()
                         .requestMatchers("/api/**").hasRole("ADMIN")

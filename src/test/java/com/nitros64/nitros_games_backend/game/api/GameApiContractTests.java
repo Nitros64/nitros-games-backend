@@ -122,6 +122,8 @@ class GameApiContractTests {
                 .andExpect(jsonPath("$.gameVersionId").value(version.getId()))
                 .andExpect(jsonPath("$.serverHostImageId").value(hostImage.getId()));
 
+        publication(game.getId(), "PUBLISHED");
+
         mvc.perform(get("/api/v1/games/{gameId}", game.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Nitro Game"));
@@ -176,6 +178,10 @@ class GameApiContractTests {
                                 """.formatted(strategy.getId())))
                 .andExpect(status().isCreated());
 
+        for (var game : gameRepository.findAll()) {
+            publication(game.getId(), "PUBLISHED");
+        }
+
         mvc.perform(get("/api/v1/games/search")
                         .param("name", "PROJECT")
                         .param("genreId", strategy.getId().toString())
@@ -219,12 +225,58 @@ class GameApiContractTests {
     }
 
     @Test
+    void unknownGenreDoesNotCreateOrPartiallyUpdateGame() throws Exception {
+        String invalid = gameJson("Invalid Game").replace(
+                "\"genreIds\":[" + genre.getId() + "]", "\"genreIds\":[" + genre.getId() + ",9223372036854775807]");
+        mvc.perform(post("/api/v1/games").with(admin()).contentType(MediaType.APPLICATION_JSON).content(invalid))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("resource_not_found"));
+        assertThat(gameRepository.count()).isZero();
+        createGame("Original Game").andExpect(status().isCreated());
+        var id = gameRepository.findAll().getFirst().getId();
+        mvc.perform(put("/api/v1/games/{id}", id).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/admin/games/{id}", id).with(admin()))
+                .andExpect(jsonPath("$.name").value("Original Game"))
+                .andExpect(jsonPath("$.genreIds.length()").value(1));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"programmingLanguageId", "programmingToolId", "processorId"})
+    void unknownVersionReferenceDoesNotCreateVersion(String field) throws Exception {
+        createGame("Test Game").andExpect(status().isCreated());
+        var id = gameRepository.findAll().getFirst().getId();
+        String body = versionJson("Version One", platform.getId())
+                .replaceAll("\"" + field + "\":\\d+", "\"" + field + "\":9223372036854775807");
+        mvc.perform(post("/api/v1/games/{id}/versions", id).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("resource_not_found"));
+        assertThat(versionRepository.count()).isZero();
+    }
+
+    @Test
+    void unknownDownloadHostDoesNotCreateDownload() throws Exception {
+        createGame("Test Game").andExpect(status().isCreated());
+        var id = gameRepository.findAll().getFirst().getId();
+        mvc.perform(post("/api/v1/games/{id}/versions", id).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(versionJson("Version One", platform.getId())))
+                .andExpect(status().isCreated());
+        var versionId = versionRepository.findAll().getFirst().getId();
+        mvc.perform(post("/api/v1/games/{id}/versions/{version}/download-links", id, versionId).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"link\":\"https://files.example/test.zip\",\"serverHostImageId\":9223372036854775807}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("resource_not_found"));
+        assertThat(downloadLinkRepository.count()).isZero();
+    }
+
+    @Test
     void nestedResourcesCannotBeAccessedThroughAnotherGame() throws Exception {
         createGame("First Game").andExpect(status().isCreated());
         createGame("Second Game").andExpect(status().isCreated());
         var games = gameRepository.findAll();
         var first = games.get(0);
         var second = games.get(1);
+        publication(first.getId(), "PUBLISHED");
+        publication(second.getId(), "PUBLISHED");
         mvc.perform(post("/api/v1/games/{gameId}/versions", first.getId())
                         .with(admin()).contentType(MediaType.APPLICATION_JSON)
                         .content(versionJson("Version One", platform.getId())))
@@ -244,6 +296,8 @@ class GameApiContractTests {
         var games = gameRepository.findAll();
         var first = games.get(0);
         var second = games.get(1);
+        publication(first.getId(), "PUBLISHED");
+        publication(second.getId(), "PUBLISHED");
 
         mvc.perform(get("/api/v1/games/{gameId}/versions", first.getId()))
                 .andExpect(status().isOk())
@@ -307,6 +361,122 @@ class GameApiContractTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"));
         assertThat(gameRepository.count()).isZero();
+    }
+
+    @Test
+    void publicationControlsEveryPublicReadAndIsIdempotent() throws Exception {
+        createGame("Draft Game").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.publicationStatus").value("DRAFT"));
+        var gameId = gameRepository.findAll().getFirst().getId();
+        mvc.perform(post("/api/v1/games/{id}/versions", gameId).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(versionJson("Version One", platform.getId())))
+                .andExpect(status().isCreated());
+        var versionId = versionRepository.findAll().getFirst().getId();
+        mvc.perform(post("/api/v1/games/{id}/versions/{version}/download-links", gameId, versionId)
+                        .with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(downloadLinkJson("https://files.example/draft.zip")))
+                .andExpect(status().isCreated());
+        var linkId = downloadLinkRepository.findAll().getFirst().getId();
+        var root = "/api/v1/games/" + gameId;
+        var version = root + "/versions/" + versionId;
+        var urls = java.util.List.of(root, root + "/versions", version,
+                version + "/download-links", version + "/download-links/" + linkId);
+
+        mvc.perform(get("/api/v1/admin/games").with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].publicationStatus").value("DRAFT"));
+        mvc.perform(get("/api/v1/admin/games/{id}", gameId).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.publicationStatus").value("DRAFT"));
+        assertPublicVisibility(urls, 0);
+        for (int i = 0; i < 2; i++) {
+            publication(gameId, "PUBLISHED");
+            assertPublicVisibility(urls, 1);
+        }
+        // Ordinary edits preserve publication state.
+        mvc.perform(put(root).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(gameJson("Updated Game")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.publicationStatus").value("PUBLISHED"));
+        for (int i = 0; i < 2; i++) {
+            publication(gameId, "DRAFT");
+            assertPublicVisibility(urls, 0);
+            assertThat(versionRepository.existsById(versionId)).isTrue();
+            assertThat(downloadLinkRepository.existsById(linkId)).isTrue();
+        }
+        mvc.perform(put(root).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(gameJson("Updated Draft")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.publicationStatus").value("DRAFT"));
+    }
+
+    @Test
+    void adminEndpointsRequireAdminIncludingHeadAndValidatePublication() throws Exception {
+        createGame("Draft Game").andExpect(status().isCreated());
+        var id = gameRepository.findAll().getFirst().getId();
+        for (var path : java.util.List.of("/api/v1/admin/games", "/api/v1/admin/games/" + id)) {
+            mvc.perform(get(path)).andExpect(status().isUnauthorized());
+            mvc.perform(get(path).with(com.nitros64.nitros_games_backend.security.JwtTestSupport.userJwt()))
+                    .andExpect(status().isForbidden());
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head(path))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head(path)
+                            .with(com.nitros64.nitros_games_backend.security.JwtTestSupport.userJwt()))
+                    .andExpect(status().isForbidden());
+        }
+        var path = "/api/v1/admin/games/" + id + "/publication";
+        mvc.perform(put(path).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publicationStatus\":\"PUBLISHED\"}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(put(path).with(com.nitros64.nitros_games_backend.security.JwtTestSupport.userJwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"publicationStatus\":\"PUBLISHED\"}"))
+                .andExpect(status().isForbidden());
+        for (var body : java.util.List.of("{}", "{\"publicationStatus\":null}",
+                "{\"publicationStatus\":\"INVALID\"}")) {
+            mvc.perform(put(path).with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(get("/api/v1/admin/games/{id}", id + 999).with(admin()))
+                .andExpect(status().isNotFound());
+        mvc.perform(put("/api/v1/admin/games/{id}/publication", id + 999).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"publicationStatus\":\"PUBLISHED\"}"))
+                .andExpect(status().isNotFound());
+        assertThat(gameRepository.findById(id).orElseThrow().getPublicationStatus().name()).isEqualTo("DRAFT");
+    }
+
+    @Test
+    void mixedPublicPagesAndSearchCountsExcludeDrafts() throws Exception {
+        createGame("Visible Game").andExpect(status().isCreated());
+        publication(gameRepository.findAll().getFirst().getId(), "PUBLISHED");
+        createGame("Hidden Game").andExpect(status().isCreated());
+        mvc.perform(get("/api/v1/games")).andExpect(jsonPath("$.length()").value(1));
+        for (var path : java.util.List.of("/api/v1/games/paged", "/api/v1/games/search")) {
+            mvc.perform(get(path).param("size", "1"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.content[0].name").value("Visible Game"));
+        }
+        mvc.perform(get("/api/v1/games/search").param("name", "Hidden"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    private void assertPublicVisibility(java.util.List<String> urls, int count) throws Exception {
+        for (var url : urls) {
+            mvc.perform(get(url)).andExpect(status().is(count == 0 ? 404 : 200));
+            mvc.perform(get(url).with(admin())).andExpect(status().is(count == 0 ? 404 : 200));
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head(url))
+                    .andExpect(status().is(count == 0 ? 404 : 200));
+        }
+        mvc.perform(get("/api/v1/games")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(count));
+        for (var path : java.util.List.of("/api/v1/games/paged", "/api/v1/games/search")) {
+            mvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(count))
+                    .andExpect(jsonPath("$.content.length()").value(count));
+        }
+    }
+
+    private void publication(Long id, String state) throws Exception {
+        mvc.perform(put("/api/v1/admin/games/{id}/publication", id).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"publicationStatus\":\"" + state + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.publicationStatus").value(state));
     }
 
     private org.springframework.test.web.servlet.ResultActions createGame(String name) throws Exception {

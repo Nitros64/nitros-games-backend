@@ -11,13 +11,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.nitros64.nitros_games_backend.game.domain.GameData;
+import com.nitros64.nitros_games_backend.game.domain.PublicationStatus;
 
 public interface GameDataRepository extends JpaRepository<GameData, Long> {
+
+    boolean existsByIdAndPublicationStatus(Long id,
+            PublicationStatus publicationStatus);
+
+    @Query("select distinct game from GameData game left join fetch game.genres order by game.id")
+    List<GameData> findAllAdminDetailed();
 
     @Query("""
             select distinct game
             from GameData game
             left join fetch game.genres
+            where game.publicationStatus = com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED
             order by game.id
             """)
     List<GameData> findAllDetailed();
@@ -39,15 +47,16 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
     List<GameData> findDetailedByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query(
-            value = "select game.id from GameData game",
-            countQuery = "select count(game) from GameData game")
+            value = "select game.id from GameData game where game.publicationStatus = com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED",
+            countQuery = "select count(game) from GameData game where game.publicationStatus = com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED")
     Page<Long> findAllIds(Pageable pageable);
 
     @Query(
             value = """
                     select game.id
                     from GameData game
-                    where (:name is null
+                    where game.publicationStatus = com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED
+                      and (:name is null
                            or lower(game.name) like lower(concat('%', :name, '%')))
                       and (:genreId is null
                            or exists (
@@ -60,7 +69,8 @@ public interface GameDataRepository extends JpaRepository<GameData, Long> {
             countQuery = """
                     select count(game)
                     from GameData game
-                    where (:name is null
+                    where game.publicationStatus = com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED
+                      and (:name is null
                            or lower(game.name) like lower(concat('%', :name, '%')))
                       and (:genreId is null
                            or exists (

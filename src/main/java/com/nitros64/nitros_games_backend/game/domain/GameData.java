@@ -4,9 +4,12 @@ import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.shared.domain.AbstractEntity;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -16,6 +19,8 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -27,6 +32,11 @@ import org.hibernate.annotations.OnDeleteAction;
 public class GameData extends AbstractEntity {
     
     private static final long serialVersionUID = 1L;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "publication_status", nullable = false, length = 16)
+    private PublicationStatus publicationStatus = PublicationStatus.DRAFT;
 
     @Column(nullable = false)
     private String name;
@@ -50,6 +60,10 @@ public class GameData extends AbstractEntity {
             joinColumns = @JoinColumn(name = "mygame_id"),
             inverseJoinColumns = @JoinColumn(name = "genre_id"))
     private Set<GameGenre> genres = new HashSet<>();
+
+    public void changePublicationStatus(PublicationStatus publicationStatus) {
+        this.publicationStatus = Objects.requireNonNull(publicationStatus);
+    }
 
     public void updateDetails(
             String name,

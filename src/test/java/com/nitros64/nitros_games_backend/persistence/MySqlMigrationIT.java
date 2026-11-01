@@ -90,7 +90,7 @@ class MySqlMigrationIT {
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
         assertThat(flyway.info().current().getVersion().toString())
-                .isEqualTo("4");
+                .isEqualTo("5");
 
         Integer applicationTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -202,6 +202,7 @@ class MySqlMigrationIT {
                 gameId,
                 genreId);
 
+        jdbcTemplate.update("update gamedata set publication_status = 'PUBLISHED' where id = ?", gameId);
         var ids = gameDataRepository.searchIds(
                 "PROJECT",
                 genreId,

@@ -8,6 +8,6 @@ import jakarta.validation.constraints.Size;
 public record PlatformRequest(
         @NoNumberString
         @NotBlank(message = "No se permite campo en blanco")
-        @Size(min = 4, max = 30, message = "el tamaño tiene que estar entre 4 y 30")
+        @Size(min = 1, max = 30, message = "el tamaño tiene que estar entre 1 y 30")
         String name) {
 }

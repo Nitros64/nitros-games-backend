@@ -20,7 +20,7 @@ public class GameApiMapper {
         return new GameResponse(
                 details.id(), details.name(), details.description(), details.jam(),
                 details.developerCount(), 
-                details.genreIds());
+                details.genreIds(), details.publicationStatus());
     }
 
 }

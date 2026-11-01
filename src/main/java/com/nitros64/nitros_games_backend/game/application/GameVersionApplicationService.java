@@ -16,20 +16,24 @@ import com.nitros64.nitros_games_backend.tooling.application.ToolCompatibilitySe
 public class GameVersionApplicationService {
 
     private final GameDataRepository games;
+    private final GameApplicationService gamePublication;
     private final GameVersionRepository versions;
     private final ToolCompatibilityService toolCompatibility;
 
     public GameVersionApplicationService(
             GameDataRepository games,
             GameVersionRepository versions,
+            GameApplicationService gamePublication,
             ToolCompatibilityService toolCompatibility) {
         this.games = games;
         this.versions = versions;
+        this.gamePublication = gamePublication;
         this.toolCompatibility = toolCompatibility;
     }
 
     @Transactional(readOnly = true)
     public List<GameVersionDetails> findVersions(Long gameId) {
+        gamePublication.requirePublishedGame(gameId);
         var foundVersions = versions.findAllDetailedByGameIdOrderById(gameId);
         if (foundVersions.isEmpty() && !games.existsById(gameId)) {
             throw new ResourceNotFoundException("Game not found");
@@ -41,6 +45,7 @@ public class GameVersionApplicationService {
 
     @Transactional(readOnly = true)
     public GameVersionDetails findVersion(Long gameId, Long versionId) {
+        gamePublication.requirePublishedGame(gameId);
         return toDetails(requireVersion(gameId, versionId));
     }
 

@@ -195,6 +195,7 @@ class GamePersistenceQueryTests {
             GameGenre genre) {
         var game = new GameData();
         game.updateDetails(name, "Game description", jam, 2, Set.of(genre));
+        game.changePublicationStatus(com.nitros64.nitros_games_backend.game.domain.PublicationStatus.PUBLISHED);
         return gameRepository.saveAndFlush(game);
     }
 

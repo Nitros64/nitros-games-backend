@@ -284,6 +284,23 @@ class ToolingApiContractTests {
                 .andExpect(jsonPath("$.code").value("resource_not_found"));
     }
 
+    @ParameterizedTest(name = "duplicate tool {0} returns conflict")
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"name", "webPage", "imagefilePath"})
+    void duplicateToolAttributesDoNotCreateAnotherTool(String field) throws Exception {
+        long typeId = createToolType("Editor");
+        mockMvc.perform(post("/api/v1/programming-tools").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toolJson("First Tool", "https://first.example", "first.png", typeId)))
+                .andExpect(status().isCreated());
+        String name = field.equals("name") ? "First Tool" : "Second Tool";
+        String url = field.equals("webPage") ? "https://first.example" : "https://second.example";
+        String image = field.equals("imagefilePath") ? "first.png" : "second.png";
+        mockMvc.perform(post("/api/v1/programming-tools").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(toolJson(name, url, image, typeId)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("data_conflict"));
+        org.assertj.core.api.Assertions.assertThat(toolRepository.count()).isEqualTo(1);
+    }
+
     @ParameterizedTest(name = "{0} validates its request DTO")
     @MethodSource("validationCases")
     void requestDtoOwnsValidation(String resource, String body) throws Exception {

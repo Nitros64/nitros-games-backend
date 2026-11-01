@@ -15,21 +15,25 @@ import com.nitros64.nitros_games_backend.storage.application.ServerHostImageServ
 @Service
 public class DownloadLinkApplicationService {
 
+    private final GameApplicationService gamePublication;
     private final GameVersionRepository versions;
     private final DownloadLinkRepository downloadLinks;
     private final ServerHostImageService hostImages;
 
     public DownloadLinkApplicationService(
             GameVersionRepository versions,
+            GameApplicationService gamePublication,
             DownloadLinkRepository downloadLinks,
             ServerHostImageService hostImages) {
         this.versions = versions;
+        this.gamePublication = gamePublication;
         this.downloadLinks = downloadLinks;
         this.hostImages = hostImages;
     }
 
     @Transactional(readOnly = true)
     public List<DownloadLinkDetails> findDownloadLinks(Long gameId, Long versionId) {
+        gamePublication.requirePublishedGame(gameId);
         var foundLinks = downloadLinks.findAllDetailedByHierarchy(versionId, gameId);
         if (foundLinks.isEmpty() && !versions.existsByIdAndGameId(versionId, gameId)) {
             throw new ResourceNotFoundException("Game version not found");
@@ -41,6 +45,7 @@ public class DownloadLinkApplicationService {
 
     @Transactional(readOnly = true)
     public DownloadLinkDetails findDownloadLink(Long gameId, Long versionId, Long linkId) {
+        gamePublication.requirePublishedGame(gameId);
         return toDetails(requireDownloadLink(gameId, versionId, linkId));
     }
 
