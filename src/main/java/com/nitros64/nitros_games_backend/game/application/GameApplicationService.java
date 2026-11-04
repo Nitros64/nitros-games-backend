@@ -16,6 +16,7 @@ import com.nitros64.nitros_games_backend.catalog.domain.GameGenre;
 import com.nitros64.nitros_games_backend.game.domain.GameData;
 import com.nitros64.nitros_games_backend.game.domain.PublicationStatus;
 import com.nitros64.nitros_games_backend.game.persistence.GameDataRepository;
+import com.nitros64.nitros_games_backend.media.application.GameMediaService;
 import com.nitros64.nitros_games_backend.shared.application.ResourceNotFoundException;
 
 @Service
@@ -23,12 +24,15 @@ public class GameApplicationService {
 
     private final GameDataRepository games;
     private final GameGenreService genres;
+    private final GameMediaService media;
 
     public GameApplicationService(
             GameDataRepository games,
-            GameGenreService genres) {
+            GameGenreService genres,
+            GameMediaService media) {
         this.games = games;
         this.genres = genres;
+        this.media = media;
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +99,7 @@ public class GameApplicationService {
 
     @Transactional
     public void deleteGame(Long gameId) {
+        media.deleteAllForGame(gameId);
         games.delete(requireGame(gameId));
         games.flush();
     }

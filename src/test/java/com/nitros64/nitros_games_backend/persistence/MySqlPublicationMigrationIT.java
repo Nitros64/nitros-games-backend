@@ -35,7 +35,7 @@ class MySqlPublicationMigrationIT {
                     .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                     .locations("classpath:db/migration/mysql").load();
             flyway.migrate();
-            assertThat(flyway.info().current().getVersion().toString()).isEqualTo("5");
+            assertThat(flyway.info().current().getVersion().toString()).isEqualTo("6");
             statement.execute("""
                     INSERT INTO gamedata (name, descripcion, jam, dev_numbers)
                     VALUES ('New game', 'New description', false, 1)

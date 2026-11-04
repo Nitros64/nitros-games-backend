@@ -7,6 +7,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +16,10 @@ import com.nitros64.nitros_games_backend.game.domain.GameData;
 import com.nitros64.nitros_games_backend.game.domain.PublicationStatus;
 
 public interface GameDataRepository extends JpaRepository<GameData, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select game from GameData game where game.id = :id")
+    Optional<GameData> findLockedById(@Param("id") Long id);
 
     boolean existsByIdAndPublicationStatus(Long id,
             PublicationStatus publicationStatus);

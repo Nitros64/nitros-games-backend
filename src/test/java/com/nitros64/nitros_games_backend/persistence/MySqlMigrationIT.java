@@ -36,6 +36,7 @@ import jakarta.persistence.EntityManager;
         "spring.flyway.baseline-on-migrate=false",
         "spring.jpa.hibernate.ddl-auto=validate",
         "app.storage.host-images.directory=target/test-storage/mysql-it",
+        "app.storage.game-media.directory=target/test-storage/mysql-it-media",
         "app.security.allowed-origins=http://localhost:4200",
         "app.security.jwt.issuer-uri=https://issuer.example.test/realms/nitros-games",
         "app.security.jwt.jwk-set-uri=https://issuer.example.test/realms/nitros-games/protocol/openid-connect/certs",
@@ -90,7 +91,7 @@ class MySqlMigrationIT {
     @Test
     void flywayCreatesSchemaThatMatchesTheJpaModel() {
         assertThat(flyway.info().current().getVersion().toString())
-                .isEqualTo("5");
+                .isEqualTo("6");
 
         Integer applicationTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -99,7 +100,7 @@ class MySqlMigrationIT {
                 AND table_name <> 'flyway_schema_history'
                 """, Integer.class);
 
-        assertThat(applicationTableCount).isEqualTo(12);
+        assertThat(applicationTableCount).isEqualTo(13);
 
         assertThat(genreRepository.findAll()).isEmpty();
 
@@ -131,6 +132,33 @@ class MySqlMigrationIT {
         );
 
         assertThat(gameCount).isEqualTo(2);
+    }
+
+    @Test
+    void mediaConstraintsEnforceSingleCoverAndCascadeRowsOnGameDeletion() {
+        jdbcTemplate.update("INSERT INTO gamedata (name, descripcion, jam, dev_numbers) VALUES ('Media constraint', 'Test', false, 1)");
+        Long id = jdbcTemplate.queryForObject("SELECT id FROM gamedata WHERE name = 'Media constraint'", Long.class);
+        String insert = """
+                INSERT INTO game_media
+                    (game_id, media_type, sort_order, storage_key, content_type, byte_size, width, height)
+                VALUES (?, ?, ?, ?, 'image/png', 100, 2, 2)
+                """;
+        jdbcTemplate.update(insert, id, "COVER", 0, "cover.png");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                jdbcTemplate.update(insert, id, "COVER", 0, "duplicate.png"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                jdbcTemplate.update(insert, id, "COVER", 1, "invalid-cover.png"))
+                .rootCause().isInstanceOfSatisfying(java.sql.SQLException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(3819));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                jdbcTemplate.update(insert, id, "SCREENSHOT", 0, "invalid-screen.png"))
+                .rootCause().isInstanceOfSatisfying(java.sql.SQLException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(3819));
+        jdbcTemplate.update(insert, id, "SCREENSHOT", 1, "screen.png");
+        jdbcTemplate.update("DELETE FROM gamedata WHERE id = ?", id);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM game_media WHERE game_id = ?", Long.class, id))
+                .isZero();
     }
 
     @Test
