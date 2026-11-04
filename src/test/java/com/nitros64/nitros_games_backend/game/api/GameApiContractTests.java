@@ -442,6 +442,60 @@ class GameApiContractTests {
     }
 
     @Test
+    void administrativeChildrenSupportDraftsAndEnforceAuthorizationAndOwnership() throws Exception {
+        createGame("Draft Parent").andExpect(status().isCreated());
+        var gameId = gameRepository.findAll().getFirst().getId();
+        var publicRoot = "/api/v1/games/" + gameId + "/versions";
+        var adminRoot = "/api/v1/admin/games/" + gameId + "/versions";
+        mvc.perform(get(adminRoot).with(admin())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(post(publicRoot).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                .content(versionJson("Version One", platform.getId()))).andExpect(status().isCreated());
+        var versionId = versionRepository.findAll().getFirst().getId();
+        var links = publicRoot + "/" + versionId + "/download-links";
+        var adminLinks = adminRoot + "/" + versionId + "/download-links";
+        mvc.perform(get(adminLinks).with(admin())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(post(links).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                .content(downloadLinkJson("https://files.example/test.zip"))).andExpect(status().isCreated());
+        var linkId = downloadLinkRepository.findAll().getFirst().getId();
+        var paths = java.util.List.of(adminRoot, adminRoot + "/" + versionId,
+                adminLinks, adminLinks + "/" + linkId);
+        for (var publicationStatus : java.util.List.of("DRAFT", "PUBLISHED", "DRAFT")) {
+            publication(gameId, publicationStatus);
+            for (var path : paths) {
+                mvc.perform(get(path).with(admin())).andExpect(status().isOk());
+                mvc.perform(get(path)).andExpect(status().isUnauthorized());
+                mvc.perform(get(path).with(com.nitros64.nitros_games_backend.security.JwtTestSupport.userJwt()))
+                        .andExpect(status().isForbidden());
+                mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head(path))
+                        .andExpect(status().isUnauthorized());
+                mvc.perform(get(path.replace("/admin", "")).with(admin()))
+                        .andExpect(status().is(publicationStatus.equals("PUBLISHED") ? 200 : 404));
+                mvc.perform(get(path.replace("/admin", "")))
+                        .andExpect(status().is(publicationStatus.equals("PUBLISHED") ? 200 : 404));
+            }
+        }
+        mvc.perform(get(adminRoot).with(admin())).andExpect(jsonPath("$[0].gameId").value(gameId));
+        mvc.perform(get(adminLinks + "/" + linkId).with(admin()))
+                .andExpect(jsonPath("$.gameVersionId").value(versionId));
+        createGame("Other Parent").andExpect(status().isCreated());
+        var otherId = gameRepository.findAll().stream().filter(g -> !g.getId().equals(gameId)).findFirst().orElseThrow().getId();
+        for (var path : java.util.List.of(
+                "/api/v1/admin/games/" + otherId + "/versions/" + versionId,
+                "/api/v1/admin/games/" + otherId + "/versions/" + versionId + "/download-links",
+                "/api/v1/admin/games/" + otherId + "/versions/" + versionId + "/download-links/" + linkId,
+                "/api/v1/admin/games/999999/versions", adminRoot + "/999999",
+                adminRoot + "/999999/download-links", adminLinks + "/999999")) {
+            mvc.perform(get(path).with(admin())).andExpect(status().isNotFound());
+        }
+        for (var path : java.util.List.of("/api/v1/admin/games/0/versions",
+                adminRoot + "/0", adminRoot + "/0/download-links", adminLinks + "/0")) {
+            mvc.perform(get(path).with(admin())).andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
     void mixedPublicPagesAndSearchCountsExcludeDrafts() throws Exception {
         createGame("Visible Game").andExpect(status().isCreated());
         publication(gameRepository.findAll().getFirst().getId(), "PUBLISHED");

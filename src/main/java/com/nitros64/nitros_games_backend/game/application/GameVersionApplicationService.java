@@ -34,6 +34,11 @@ public class GameVersionApplicationService {
     @Transactional(readOnly = true)
     public List<GameVersionDetails> findVersions(Long gameId) {
         gamePublication.requirePublishedGame(gameId);
+        return findAdminVersions(gameId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GameVersionDetails> findAdminVersions(Long gameId) {
         var foundVersions = versions.findAllDetailedByGameIdOrderById(gameId);
         if (foundVersions.isEmpty() && !games.existsById(gameId)) {
             throw new ResourceNotFoundException("Game not found");
@@ -46,6 +51,11 @@ public class GameVersionApplicationService {
     @Transactional(readOnly = true)
     public GameVersionDetails findVersion(Long gameId, Long versionId) {
         gamePublication.requirePublishedGame(gameId);
+        return findAdminVersion(gameId, versionId);
+    }
+
+    @Transactional(readOnly = true)
+    public GameVersionDetails findAdminVersion(Long gameId, Long versionId) {
         return toDetails(requireVersion(gameId, versionId));
     }
 

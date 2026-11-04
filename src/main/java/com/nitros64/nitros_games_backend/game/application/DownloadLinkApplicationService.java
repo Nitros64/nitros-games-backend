@@ -34,6 +34,11 @@ public class DownloadLinkApplicationService {
     @Transactional(readOnly = true)
     public List<DownloadLinkDetails> findDownloadLinks(Long gameId, Long versionId) {
         gamePublication.requirePublishedGame(gameId);
+        return findAdminDownloadLinks(gameId, versionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DownloadLinkDetails> findAdminDownloadLinks(Long gameId, Long versionId) {
         var foundLinks = downloadLinks.findAllDetailedByHierarchy(versionId, gameId);
         if (foundLinks.isEmpty() && !versions.existsByIdAndGameId(versionId, gameId)) {
             throw new ResourceNotFoundException("Game version not found");
@@ -46,6 +51,11 @@ public class DownloadLinkApplicationService {
     @Transactional(readOnly = true)
     public DownloadLinkDetails findDownloadLink(Long gameId, Long versionId, Long linkId) {
         gamePublication.requirePublishedGame(gameId);
+        return findAdminDownloadLink(gameId, versionId, linkId);
+    }
+
+    @Transactional(readOnly = true)
+    public DownloadLinkDetails findAdminDownloadLink(Long gameId, Long versionId, Long linkId) {
         return toDetails(requireDownloadLink(gameId, versionId, linkId));
     }
 
